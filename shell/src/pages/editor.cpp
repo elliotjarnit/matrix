@@ -25,6 +25,44 @@ using detail::kKbGroupArrows;
 using detail::kScreenH;
 using detail::kScreenW;
 using namespace matrix_shell::text_literals;
+
+struct DigitKey {
+		std::uint8_t group;
+		std::uint8_t mask;
+		char ch;
+};
+
+constexpr DigitKey kDigitKeys[] = {
+        {kKbGroup3, kb_0, '0'},
+        {kKbGroup3, kb_1, '1'},
+        {kKbGroup4, kb_2, '2'},
+        {kKbGroup5, kb_3, '3'},
+        {kKbGroup3, kb_4, '4'},
+        {kKbGroup4, kb_5, '5'},
+        {kKbGroup5, kb_6, '6'},
+        {kKbGroup3, kb_7, '7'},
+        {kKbGroup4, kb_8, '8'},
+        {kKbGroup5, kb_9, '9'},
+};
+
+// first digit key pressed this frame, or '\0' when none is
+char pressed_digit(const Input& in) noexcept {
+		for (const DigitKey& dk : kDigitKeys) {
+				if (in.pressed(dk.group, dk.mask))
+						return dk.ch;
+		}
+		return '\0';
+}
+
+// left to right, wrapping to the start of the next row; stays put on the last cell
+void advance_cell(EditorState& s, std::uint8_t rows, std::uint8_t cols) noexcept {
+		if (s.cur_c + 1 < cols) {
+				s.cur_c++;
+		} else if (s.cur_r + 1 < rows) {
+				s.cur_r++;
+				s.cur_c = 0;
+		}
+}
 } // namespace
 
 void App::render_editor(const EditorState& s) noexcept {
@@ -168,26 +206,10 @@ void App::update_editor(EditorState& s) noexcept {
 						s.edit_buf[s.edit_len] = '\0';
 				};
 
-				if (input_.pressed(kKbGroup3, kb_0))
-						push_digit('0');
-				if (input_.pressed(kKbGroup3, kb_1))
-						push_digit('1');
-				if (input_.pressed(kKbGroup4, kb_2))
-						push_digit('2');
-				if (input_.pressed(kKbGroup5, kb_3))
-						push_digit('3');
-				if (input_.pressed(kKbGroup3, kb_4))
-						push_digit('4');
-				if (input_.pressed(kKbGroup4, kb_5))
-						push_digit('5');
-				if (input_.pressed(kKbGroup5, kb_6))
-						push_digit('6');
-				if (input_.pressed(kKbGroup3, kb_7))
-						push_digit('7');
-				if (input_.pressed(kKbGroup4, kb_8))
-						push_digit('8');
-				if (input_.pressed(kKbGroup5, kb_9))
-						push_digit('9');
+				for (const DigitKey& dk : kDigitKeys) {
+						if (input_.pressed(dk.group, dk.mask))
+								push_digit(dk.ch);
+				}
 
 				if (!input_.pressed(kKbGroup6, kb_Enter))
 						return;
@@ -204,12 +226,13 @@ void App::update_editor(EditorState& s) noexcept {
 				}
 
 				slot.view_active_mut().at_mut(s.cur_r, s.cur_c) = matrix_core::Rational::from_int(v);
-					SHELL_DBG("[edit] commit slot=%c cell=(%u,%u) v=", (char)('A' + s.slot), (unsigned)s.cur_r, (unsigned)s.cur_c);
-					detail::dbg_print_i64(v);
-					SHELL_DBG("\n");
-					s.editing = false;
-					return;
-			}
+				SHELL_DBG("[edit] commit slot=%c cell=(%u,%u) v=", (char)('A' + s.slot), (unsigned)s.cur_r, (unsigned)s.cur_c);
+				detail::dbg_print_i64(v);
+				SHELL_DBG("\n");
+				s.editing = false;
+				advance_cell(s, slot.rows, slot.cols);
+				return;
+		}
 
 		// non-editing navigation/back
 		if (input_.pressed(kKbGroup6, kb_Clear)) {
@@ -243,6 +266,25 @@ void App::update_editor(EditorState& s) noexcept {
 				slot.view_active_mut().at_mut(s.cur_r, s.cur_c) = matrix_core::Rational::from_int(0);
 				SHELL_DBG("[edit] DEL zero slot=%c cell=(%u,%u)\n", (char)('A' + s.slot), (unsigned)s.cur_r, (unsigned)s.cur_c);
 				return;
+		}
+
+		// typing a digit or sign enters edit mode with that keystroke already in the buffer
+		{
+				char first = pressed_digit(input_);
+				if (first == '\0' && input_.pressed(kKbGroup5, kb_Chs))
+						first = '-';
+				if (first != '\0') {
+						s.editing = true;
+						s.edit_buf[0] = first;
+						s.edit_buf[1] = '\0';
+						s.edit_len = 1;
+						SHELL_DBG("[edit] begin-typed slot=%c cell=(%u,%u) c=%c\n",
+						        (char)('A' + s.slot),
+						        (unsigned)s.cur_r,
+						        (unsigned)s.cur_c,
+						        first);
+						return;
+				}
 		}
 
 		// enter edit
