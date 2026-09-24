@@ -112,6 +112,7 @@ ctest --preset native
 | `test_cofactor_element` | Single cofactor/minor with step rendering |
 | `test_minor_matrix` | Full matrix of minors |
 | `test_spaces` | Column/row/null space basis extraction |
+| `test_solve_parametric` | Complete solution of Ax=b in parametric vector form, with step rendering |
 | `test_arena_guards` | Arena allocator boundary checks |
 
 ### CE Target Tests

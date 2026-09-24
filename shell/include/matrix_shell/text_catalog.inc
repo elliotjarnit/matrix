@@ -43,6 +43,15 @@ MATRIX_SHELL_TEXT_ENTRY(LuHomogeneous, "lu.homogeneous", "homogeneous solution",
 MATRIX_SHELL_TEXT_ENTRY(LuSummary, "lu.summary", "summary", "resume")
 MATRIX_SHELL_TEXT_ENTRY(LuSwapRows, "lu.swap_rows", "swap rows", "echange de lignes")
 
+MATRIX_SHELL_TEXT_ENTRY(SolveAugmented, "solve.augmented", "Augmented matrix [A | b]", "Matrice augmentee [A | b]")
+MATRIX_SHELL_TEXT_ENTRY(SolveRrefLabel, "solve.rref", "RREF", "RREF")
+MATRIX_SHELL_TEXT_ENTRY(SolveSolvePivots, "solve.solve_pivots", "Solve each row for its pivot", "Resoudre chaque ligne pour son pivot")
+MATRIX_SHELL_TEXT_ENTRY(SolveFree, "solve.free", "free", "libres")
+MATRIX_SHELL_TEXT_ENTRY(SolveHomogeneous, "solve.homogeneous", "General solution of $Ax = 0$", "Solution generale de $Ax = 0$")
+MATRIX_SHELL_TEXT_ENTRY(SolveComplete, "solve.complete", "Complete solution", "Solution complete")
+MATRIX_SHELL_TEXT_ENTRY(SolveInconsistent, "solve.inconsistent", "no solution", "pas de solution")
+MATRIX_SHELL_TEXT_ENTRY(SolveUnique, "solve.unique", "Unique solution", "Solution unique")
+
 MATRIX_SHELL_TEXT_ENTRY(MenuMainTitle, "menu.main.title", "Main", "Principal")
 MATRIX_SHELL_TEXT_ENTRY(MenuMatricesTitle, "menu.matrices.title", "Matrices", "Matrices")
 MATRIX_SHELL_TEXT_ENTRY(MenuOperationsTitle, "menu.operations.title", "Operations", "Operations")
@@ -126,6 +135,9 @@ MATRIX_SHELL_TEXT_ENTRY(ResultLuPerm, "result.lu_perm", "P (permutation)", "P (p
 MATRIX_SHELL_TEXT_ENTRY(ResultLuPaTitle, "result.lu_pa_title", "PA = LU", "PA = LU")
 MATRIX_SHELL_TEXT_ENTRY(ResultLuOf, "result.lu_of", " of ", " de ")
 MATRIX_SHELL_TEXT_ENTRY(ResultLuNoSolution, "result.lu_no_solution", "No solution (see steps)", "Pas de solution (voir etapes)")
+MATRIX_SHELL_TEXT_ENTRY(ResultSolveNoSolution, "result.solve_no_solution", "No solution (see steps)", "Pas de solution (voir etapes)")
+MATRIX_SHELL_TEXT_ENTRY(ResultSolveUnique, "result.solve_unique", " (unique)", " (unique)")
+MATRIX_SHELL_TEXT_ENTRY(ResultSolveParams, "result.solve_params", "params: ", "parametres: ")
 
 MATRIX_SHELL_TEXT_ENTRY(SlotPickPick1, "slot_pick.pick1", "Pick 1", "Choix 1")
 MATRIX_SHELL_TEXT_ENTRY(SlotPickPick2, "slot_pick.pick2", "Pick 2", "Choix 2")
