@@ -80,6 +80,13 @@ Optional operations can be toggled at configure time to reduce binary size:
 | `MATRIX_FEATURE_CRAMER` | ON | OFF | Cramer's rule solver |
 | `MATRIX_FEATURE_LU` | ON | ON | LU factorization and LU solve |
 
+The CE presets pin `MATRIX_FEATURE_CRAMER=OFF`. A TI variable holds at most
+65535 bytes, and with Cramer's rule compiled in the program no longer fits:
+`convbin` splits it into a small `MATRIX.8xp` launcher plus `MATRIX0.8xv` /
+`MATRIX1.8xv` appvars, which the release workflow does not publish. Turning it
+back on is fine for local use, but check the `convbin` output for
+`Input too large; split across N appvars` before shipping the result.
+
 Example: enable Cramer's rule on the CE build:
 
 ```bash
@@ -114,6 +121,7 @@ ctest --preset native
 | `test_spaces` | Column/row/null space basis extraction |
 | `test_solve_parametric` | Complete solution of Ax=b in parametric vector form, with step rendering |
 | `test_dependency` | Linear (in)dependence and the dependency relation of each dependent vector |
+| `test_mul_colrow` | Matrix product built as the sum of outer products (column row expansion) |
 | `test_arena_guards` | Arena allocator boundary checks |
 
 ### CE Target Tests

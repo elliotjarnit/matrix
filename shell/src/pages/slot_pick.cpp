@@ -17,8 +17,10 @@
 
 namespace matrix_shell {
 namespace {
+using detail::colrow_labels;
 using detail::dbg_print_matrix;
 using detail::dbg_print_rational;
+using detail::dependency_labels;
 using detail::fail_fast;
 using detail::keep_cursor_in_view;
 using detail::kKbGroup1;
@@ -78,6 +80,86 @@ void App::render_slot_pick(const SlotPickState& s) noexcept {
 						gfx_PrintChar(static_cast<char>('0' + slot.cols));
 				}
 		}
+}
+
+// Q1 on the review sheet: is this matrix invertible, and if not, why not.
+void App::run_invertible(std::uint8_t slot) noexcept {
+		if (slot >= kSlotCount || !slots_[slot].is_set())
+				fail_fast("slot not set");
+
+		const matrix_core::MatrixView a = slots_[slot].view_active();
+		// a non square matrix has no inverse at all: that is the answer
+		// the exercise asks for, not an error
+		if (a.rows != a.cols) {
+				REQUIRE(pop(), "pop failed (invertible)");
+				expl_ = {};
+				Page p = Page::make_result_scalar(OperationId::Invertible, slot, 0, false, 0, 1);
+				p.u.result.i = 2; // not square
+				REQUIRE(push(p), "push invertible result failed");
+				return;
+		}
+
+		matrix_core::ArenaScope tx(persist_);
+		matrix_core::ArenaScratchScope scratch_tx(scratch_);
+
+		matrix_core::ExplainOptions opts_steps;
+		opts_steps.enable = true;
+		opts_steps.persist = &persist_;
+
+		matrix_core::Explanation expl;
+		matrix_core::Rational v = matrix_core::Rational::from_int(0);
+		const matrix_core::Error err = matrix_core::op_det(a, scratch_, &v, &expl, opts_steps);
+		if (!matrix_core::is_ok(err)) {
+				show_message("common.error"_tx);
+				return;
+		}
+
+		tx.commit();
+		expl_ = std::move(expl);
+		persist_tail_mark_ = persist_.mark();
+		REQUIRE(pop(), "pop failed (invertible)");
+
+		// `num`/`den` carry the determinant, `i` says why when the answer is no
+		Page p = Page::make_result_scalar(OperationId::Invertible, slot, 0, expl_.available(), v.num(), v.den());
+		p.u.result.i = v.is_zero() ? 1u : 0u;
+		REQUIRE(push(p), "push invertible result failed");
+}
+
+// Q5 and Q6: read onto and one to one off the RREF of the standard matrix.
+void App::run_transformation(std::uint8_t slot) noexcept {
+		if (slot >= kSlotCount || !slots_[slot].is_set())
+				fail_fast("slot not set");
+
+		const matrix_core::MatrixView a = slots_[slot].view_active();
+		matrix_core::ArenaScope tx(persist_);
+		matrix_core::ArenaScratchScope scratch_tx(scratch_);
+
+		matrix_core::ExplainOptions opts_steps;
+		opts_steps.enable = true;
+		opts_steps.persist = &persist_;
+		matrix_core::Explanation expl;
+
+		matrix_core::MatrixMutView rref{};
+		matrix_core::DependencyInfo info{};
+		const matrix_core::Error err = matrix_core::op_dependency(
+		        a, persist_, &rref, &info, &expl, opts_steps, dependency_labels(), matrix_core::DependencyPurpose::Transformation);
+		if (!matrix_core::is_ok(err)) {
+				show_message(err.code == matrix_core::ErrorCode::Overflow ? "common.out_of_memory"_tx : "common.error"_tx);
+				return;
+		}
+
+		tx.commit();
+		expl_ = std::move(expl);
+		persist_tail_mark_ = persist_.mark();
+		REQUIRE(pop(), "pop failed (transformation)");
+
+		// onto is rank == rows, one to one is rank == cols
+		Page p = Page::make_result_scalar(
+		        OperationId::Transformation, slot, 0, expl_.available(), info.spans ? 1 : 0, info.independent ? 1 : 0);
+		p.u.result.rows = a.rows;
+		p.u.result.cols = a.cols;
+		p.u.result.i = info.rank;
+		REQUIRE(push(p), "push transformation result failed");
 }
 
 void App::update_slot_pick(SlotPickState& s) noexcept {
@@ -356,6 +438,16 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						return;
 				}
 
+				if (s.op == OperationId::Invertible) {
+						run_invertible(sel);
+						return;
+				}
+
+				if (s.op == OperationId::Transformation) {
+						run_transformation(sel);
+						return;
+				}
+
 				if (s.op == OperationId::IndepTest) {
 						matrix_core::ArenaScope tx(persist_);
 						matrix_core::ArenaScratchScope scratch_tx(scratch_);
@@ -365,18 +457,10 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						opts_steps.persist = &persist_;
 						matrix_core::Explanation expl;
 
-						matrix_core::DependencyLabels labels{};
-						labels.vectors = "dep.vectors"_tx;
-						labels.rref = "dep.rref"_tx;
-						labels.independent = "dep.independent"_tx;
-						labels.dependent = "dep.dependent"_tx;
-						labels.vectors_word = "dep.vectors_word"_tx;
-						labels.rank_word = "dep.rank_word"_tx;
-						labels.relation = "dep.relation"_tx;
-
 						matrix_core::MatrixMutView rref{};
 						matrix_core::DependencyInfo info{};
-						const matrix_core::Error err = matrix_core::op_dependency(a, persist_, &rref, &info, &expl, opts_steps, labels);
+						const matrix_core::Error err =
+						        matrix_core::op_dependency(a, persist_, &rref, &info, &expl, opts_steps, dependency_labels());
 						if (!matrix_core::is_ok(err)) {
 								show_message(err.code == matrix_core::ErrorCode::Overflow ? "common.out_of_memory"_tx : "common.error"_tx);
 								return;
@@ -996,6 +1080,8 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 				err = matrix_core::op_add(a, b, out, &expl, opts_steps);
 		else if (s.op == OperationId::Sub)
 				err = matrix_core::op_sub(a, b, out, &expl, opts_steps);
+		else if (s.op == OperationId::MulColRow)
+				err = matrix_core::op_mul_colrow(a, b, out, &expl, opts_steps, colrow_labels());
 		else
 				err = matrix_core::op_mul(a, b, out, &expl, opts_steps);
 
@@ -1010,7 +1096,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 				if (err.code == matrix_core::ErrorCode::DimensionMismatch) {
 						fmt_buf_[0] = '\0';
 						matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-						if (s.op == OperationId::Mul)
+						if (s.op == OperationId::Mul || s.op == OperationId::MulColRow)
 								w.append("msg.inner_sizes_match_prefix"_tx);
 						else
 								w.append("msg.need_same_size_prefix"_tx);

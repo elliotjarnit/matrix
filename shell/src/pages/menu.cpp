@@ -56,7 +56,7 @@ constexpr MenuEntry kMatricesMenuEntries[] = {
 
 constexpr MenuEntry kOperationsMenuEntries[] = {
         {"menu.entry.add_sub"_tid, MenuEntryKind::Submenu, MenuId::AddSub, OperationId::Add},
-        {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Mul},
+        {"menu.entry.multiply"_tid, MenuEntryKind::Submenu, MenuId::Multiply, OperationId::Add},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Dot},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Cross},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Det},
@@ -65,6 +65,7 @@ constexpr MenuEntry kOperationsMenuEntries[] = {
         {"menu.entry.span_indep"_tid, MenuEntryKind::Submenu, MenuId::Span, OperationId::Add},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Transpose},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Inverse},
+        {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Invertible},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::LuFactor},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::LuSolve},
         {"menu.entry.spaces"_tid, MenuEntryKind::Submenu, MenuId::Spaces, OperationId::Add},
@@ -74,6 +75,11 @@ constexpr MenuEntry kOperationsMenuEntries[] = {
 constexpr OpMenuEntry kAddSubMenuOps[] = {
         {OperationId::Add, TextId::None},
         {OperationId::Sub, TextId::None},
+};
+
+constexpr OpMenuEntry kMultiplyMenuOps[] = {
+        {OperationId::Mul, TextId::None},
+        {OperationId::MulColRow, TextId::None},
 };
 
 constexpr OpMenuEntry kRefRrefMenuOps[] = {
@@ -86,6 +92,7 @@ constexpr OpMenuEntry kSpanMenuOps[] = {
         {OperationId::SpanTest, TextId::None},
         {OperationId::IndepTest, TextId::None},
         {OperationId::ColSpaceBasis, "menu.entry.basis_from_set"_tid},
+        {OperationId::Transformation, "menu.entry.onto_one_to_one"_tid},
 };
 
 constexpr OpMenuEntry kSpacesMenuOps[] = {
@@ -175,6 +182,11 @@ void App::render_menu(const MenuState& s) noexcept {
 				title = "menu.add_sub.title"_tx;
 				base_ops = kAddSubMenuOps;
 				base_ops_count = array_count(kAddSubMenuOps);
+				render_footer_hint("footer.select_back"_tx);
+		} else if (s.id == MenuId::Multiply) {
+				title = "menu.multiply.title"_tx;
+				base_ops = kMultiplyMenuOps;
+				base_ops_count = array_count(kMultiplyMenuOps);
 				render_footer_hint("footer.select_back"_tx);
 		} else if (s.id == MenuId::RefRref) {
 				title = "menu.ref_rref.title"_tx;
@@ -275,6 +287,9 @@ void App::update_menu(MenuState& s) noexcept {
 		} else if (s.id == MenuId::AddSub) {
 				base_ops = kAddSubMenuOps;
 				base_ops_count = array_count(kAddSubMenuOps);
+		} else if (s.id == MenuId::Multiply) {
+				base_ops = kMultiplyMenuOps;
+				base_ops_count = array_count(kMultiplyMenuOps);
 		} else if (s.id == MenuId::RefRref) {
 				base_ops = kRefRrefMenuOps;
 				base_ops_count = array_count(kRefRrefMenuOps);

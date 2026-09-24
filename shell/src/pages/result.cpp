@@ -192,6 +192,65 @@ void App::render_result(const ResultState& s) noexcept {
 						return;
 				}
 
+				if (s.op == OperationId::Invertible) {
+						const int y0 = l.header_h + 26;
+						gfx_SetTextXY(l.margin_x, y0);
+						gfx_PrintString("result.invertible_label"_tx);
+						// `i`: 0 invertible, 1 singular, 2 not square
+						gfx_PrintString((s.i == 0) ? "result.bool_yes"_tx : "result.bool_no"_tx);
+
+						if (s.i != 2) {
+								gfx_SetTextXY(l.margin_x, y0 + 14);
+								gfx_PrintString("result.det_eq"_tx);
+								fmt_buf_[0] = '\0';
+								matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
+								w.append_i64(s.num);
+								if (s.den != 1) {
+										w.put('/');
+										w.append_i64(s.den);
+								}
+								gfx_PrintString(fmt_buf_);
+						}
+
+						// the exercise asks why when the answer is no
+						if (s.i != 0) {
+								gfx_SetTextXY(l.margin_x, y0 + 28);
+								gfx_PrintString((s.i == 2) ? "result.reason_not_square"_tx : "result.reason_singular"_tx);
+						}
+						return;
+				}
+
+				if (s.op == OperationId::Transformation) {
+						const int y0 = l.header_h + 26;
+						// `num` is onto, `den` is one-to-one
+						gfx_SetTextXY(l.margin_x, y0);
+						gfx_PrintString("result.onto_label"_tx);
+						gfx_PrintString((s.num != 0) ? "result.bool_yes"_tx : "result.bool_no"_tx);
+
+						gfx_SetTextXY(l.margin_x, y0 + 14);
+						gfx_PrintString("result.one_to_one_label"_tx);
+						gfx_PrintString((s.den != 0) ? "result.bool_yes"_tx : "result.bool_no"_tx);
+
+						gfx_SetTextXY(l.margin_x, y0 + 28);
+						gfx_PrintString("result.rank_eq"_tx);
+						fmt_buf_[0] = '\0';
+						matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
+						w.append_u64(static_cast<std::uint64_t>(s.i));
+						gfx_PrintString(fmt_buf_);
+
+						gfx_PrintString("result.m_eq"_tx);
+						fmt_buf_[0] = '\0';
+						matrix_core::CheckedWriter w2{fmt_buf_, sizeof(fmt_buf_)};
+						w2.append_u64(static_cast<std::uint64_t>(s.rows));
+						gfx_PrintString(fmt_buf_);
+						gfx_PrintString("result.n_eq"_tx);
+						fmt_buf_[0] = '\0';
+						matrix_core::CheckedWriter w3{fmt_buf_, sizeof(fmt_buf_)};
+						w3.append_u64(static_cast<std::uint64_t>(s.cols));
+						gfx_PrintString(fmt_buf_);
+						return;
+				}
+
 				if (s.op == OperationId::Det) {
 						gfx_SetTextXY(l.margin_x, l.header_h + 30);
 						gfx_PrintString("det(");

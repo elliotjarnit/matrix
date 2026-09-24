@@ -56,17 +56,54 @@ Error op_echelon(
 // to zero and v_1 .. v_k is the basis of Null(A) produced by
 // space_null_basis(): a particular solution of the non homogeneous system plus
 // the general solution of the homogeneous one.
+// Labels for the column row expansion explanation. The caller owns the strings
+// and they must outlive the Explanation; a null field falls back to English.
+struct ColRowLabels {
+		const char* intro = nullptr; // "AB is the sum of the outer products"
+		const char* term = nullptr;	 // "term"
+		const char* sum = nullptr;	 // "sum of the outer products"
+};
+
+// A*B computed the way the review exercises call the "column row expansion":
+//
+//   AB = sum over k of  col_k(A) * row_k(B)
+//
+// Each term is the outer product of a column of A with the matching row of B,
+// an m x n matrix of rank at most one. a is m x p, b is p x n, out is m x n.
+//
+// The value written to `out` is the ordinary product; only the explanation
+// differs from op_mul().
+Error op_mul_colrow(In MatrixView a,
+        In MatrixView b,
+        Out MatrixMutView out,
+        Out Explanation* expl,
+        In const ExplainOptions& opts,
+        In const ColRowLabels& labels = ColRowLabels{}) noexcept;
+
 // Labels for the prose fragments the dependency explanation emits. The caller
 // owns the strings and they must outlive the Explanation; a null field falls
 // back to the English default.
 struct DependencyLabels {
-		const char* vectors = nullptr;      // "columns are the vectors"
-		const char* rref = nullptr;         // "RREF"
-		const char* independent = nullptr;  // "linearly independent"
-		const char* dependent = nullptr;    // "linearly dependent"
-		const char* vectors_word = nullptr; // "vectors"
-		const char* rank_word = nullptr;    // "rank"
-		const char* relation = nullptr;     // "each dependent vector over the pivot vectors"
+		const char* vectors = nullptr;        // "columns are the vectors"
+		const char* rref = nullptr;           // "RREF"
+		const char* independent = nullptr;    // "linearly independent"
+		const char* dependent = nullptr;      // "linearly dependent"
+		const char* vectors_word = nullptr;   // "vectors"
+		const char* onto = nullptr;           // "onto"
+		const char* not_onto = nullptr;       // "not onto"
+		const char* one_to_one = nullptr;     // "one-to-one"
+		const char* not_one_to_one = nullptr; // "not one-to-one"
+		const char* rows_word = nullptr;      // "rows"
+		const char* cols_word = nullptr;      // "columns"
+		const char* rank_word = nullptr;      // "rank"
+		const char* relation = nullptr;       // "each dependent vector over the pivot vectors"
+};
+
+// What the columns of A are being asked about. The reduction is identical; only
+// the verdict differs.
+enum class DependencyPurpose : std::uint8_t {
+		Vectors = 0,    // a set of vectors: independence, and the dependency relations
+		Transformation, // the standard matrix of T: onto (rank == rows) and one to one (rank == cols)
 };
 
 // Linear (in)dependence of the columns of A, with the dependency relations.
@@ -107,7 +144,8 @@ Error op_dependency(In MatrixView a,
         Out DependencyInfo* info,
         Out Explanation* expl,
         In const ExplainOptions& opts,
-        In const DependencyLabels& labels = DependencyLabels{}) noexcept;
+        In const DependencyLabels& labels = DependencyLabels{},
+        In DependencyPurpose purpose = DependencyPurpose::Vectors) noexcept;
 
 // Labels for the prose fragments the parametric solve explanation emits. The
 // caller owns the strings and they must outlive the Explanation; a null field

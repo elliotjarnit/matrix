@@ -3,6 +3,7 @@
 #include "matrix_core/latex.hpp"
 #include "matrix_core/row_ops.hpp"
 #include "matrix_core/row_reduction.hpp"
+#include "matrix_core/step_detail.hpp"
 #include "matrix_core/spaces.hpp"
 #include "matrix_core/writer.hpp"
 
@@ -25,21 +26,6 @@ struct SolveParamCtx {
 		ParametricLabels labels{}; // copied by value: the pointed to strings are caller owned
 		std::size_t op_count = 0;
 };
-
-const char* lbl(const char* value, const char* fallback) noexcept {
-		return value ? value : fallback;
-}
-
-// a Writer positioned at the end of the text already in `buf`, so a caption can
-// be extended without rebuilding it
-Writer writer_at_end(char* buf, std::size_t cap) noexcept {
-		Writer w{buf, cap, 0};
-		if (!buf || cap == 0)
-				return w;
-		while (w.len + 1 < cap && buf[w.len] != '\0')
-				w.len++;
-		return w;
-}
 
 // "x_{3}" for the 0 based variable index `col`
 ErrorCode write_var(std::uint8_t col, Writer& w) noexcept {
@@ -137,7 +123,7 @@ void caption_free_vars(const SolveParamCtx* ctx, Writer& w) noexcept {
 		if (ctx->info.nullity == 0)
 				return;
 		(void)w.append(" (");
-		(void)w.append(lbl(ctx->labels.free_vars, "free"));
+		(void)w.append(detail::lbl(ctx->labels.free_vars, "free"));
 		(void)w.append(": $");
 		for (std::uint8_t k = 0; k < ctx->info.nullity; k++) {
 				if (k != 0)
@@ -164,7 +150,7 @@ void caption_parameter_map(const SolveParamCtx* ctx, Writer& w) noexcept {
 ErrorCode render_equations_step(const SolveParamCtx* ctx, MatrixView rref, const StepRenderBuffers& out) noexcept {
 		if (out.caption && out.caption_cap) {
 				Writer cw{out.caption, out.caption_cap, 0};
-				(void)cw.append(lbl(ctx->labels.solve_pivots, "Solve each row for its pivot variable"));
+				(void)cw.append(detail::lbl(ctx->labels.solve_pivots, "Solve each row for its pivot variable"));
 				caption_free_vars(ctx, cw);
 		}
 
@@ -196,10 +182,10 @@ ErrorCode render_homogeneous_step(const SolveParamCtx* ctx, const StepRenderBuff
 		if (out.caption && out.caption_cap) {
 				Writer cw{out.caption, out.caption_cap, 0};
 				if (ctx->info.nullity == 0) {
-						(void)cw.append(lbl(ctx->labels.unique, "Unique solution"));
+						(void)cw.append(detail::lbl(ctx->labels.unique, "Unique solution"));
 						(void)cw.append(": $x_{h} = 0$");
 				} else {
-						(void)cw.append(lbl(ctx->labels.homogeneous, "General solution of $Ax = 0$"));
+						(void)cw.append(detail::lbl(ctx->labels.homogeneous, "General solution of $Ax = 0$"));
 						caption_parameter_map(ctx, cw);
 				}
 		}
@@ -210,7 +196,7 @@ ErrorCode render_homogeneous_step(const SolveParamCtx* ctx, const StepRenderBuff
 ErrorCode render_complete_step(const SolveParamCtx* ctx, const StepRenderBuffers& out) noexcept {
 		if (out.caption && out.caption_cap) {
 				Writer cw{out.caption, out.caption_cap, 0};
-				(void)cw.append(lbl(ctx->labels.complete, "Complete solution"));
+				(void)cw.append(detail::lbl(ctx->labels.complete, "Complete solution"));
 				(void)cw.append(": $x = x_{p} + x_{h}$");
 		}
 
@@ -225,7 +211,7 @@ ErrorCode render_inconsistent_step(const SolveParamCtx* ctx, MatrixView rref, co
 				(void)cw.append("}$: $0 = ");
 				(void)cw.append_rational_latex(rref.at(ctx->info.inconsistent_row, ctx->info.var_count));
 				(void)cw.append("$ - ");
-				(void)cw.append(lbl(ctx->labels.inconsistent, "no solution"));
+				(void)cw.append(detail::lbl(ctx->labels.inconsistent, "no solution"));
 		}
 
 		return write_augmented(rref, ctx->info.var_count, out.latex, out.latex_cap);
@@ -248,37 +234,19 @@ ErrorCode solve_param_render_step(const void* vctx, std::size_t index, const Ste
 		if (index == 0) {
 				if (out.caption && out.caption_cap) {
 						Writer cw{out.caption, out.caption_cap, 0};
-						(void)cw.append(lbl(ctx->labels.augmented, "Augmented matrix [A | b]"));
+						(void)cw.append(detail::lbl(ctx->labels.augmented, "Augmented matrix [A | b]"));
 				}
 				return write_augmented(ctx->aug, n, out.latex, out.latex_cap);
 		}
 
 		if (index <= ctx->op_count) {
 				MatrixMutView work{};
-				ErrorCode ec = matrix_clone(*out.scratch, ctx->aug, &work);
+				RowOp last_op{};
+				ErrorCode ec = detail::replay_echelon(ctx->aug, EchelonKind::Rref, index, *out.scratch, &work, &last_op);
 				if (!is_ok(ec))
 						return ec;
 
-				OpObserver obs;
-				obs.target = index; // stop after applying `index` ops
-				ec = echelon_apply(work, EchelonKind::Rref, &obs);
-				if (!is_ok(ec))
-						return ec;
-				if (obs.count < index)
-						return ErrorCode::StepOutOfRange;
-
-				if (out.caption && out.caption_cap) {
-						// captions are best effort: a truncated caption must not
-						// cost the student the matrix itself
-						ec = row_op_caption(obs.last_op, out.caption, out.caption_cap);
-						if (!is_ok(ec) && ec != ErrorCode::BufferTooSmall)
-								return ec;
-						if (index == ctx->op_count) {
-								Writer cw = writer_at_end(out.caption, out.caption_cap);
-								(void)cw.append("  ");
-								(void)cw.append(lbl(ctx->labels.rref, "RREF"));
-						}
-				}
+				detail::step_row_caption(last_op, index == ctx->op_count, ctx->labels.rref, out.caption, out.caption_cap);
 
 				return write_augmented(work.view(), n, out.latex, out.latex_cap);
 		}

@@ -3,6 +3,7 @@
 #include "matrix_core/latex.hpp"
 #include "matrix_core/row_ops.hpp"
 #include "matrix_core/row_reduction.hpp"
+#include "matrix_core/step_detail.hpp"
 #include "matrix_core/spaces.hpp"
 #include "matrix_core/writer.hpp"
 
@@ -22,23 +23,9 @@ struct DependencyCtx {
 		MatrixView rref{};  // RREF(A), allocated from persist by the op
 		DependencyInfo info{};
 		DependencyLabels labels{}; // copied by value: the pointed to strings are caller owned
+		DependencyPurpose purpose = DependencyPurpose::Vectors;
 		std::size_t op_count = 0;
 };
-
-const char* lbl(const char* value, const char* fallback) noexcept {
-		return value ? value : fallback;
-}
-
-// a Writer positioned at the end of the text already in `buf`, so a caption can
-// be extended without rebuilding it
-Writer writer_at_end(char* buf, std::size_t cap) noexcept {
-		Writer w{buf, cap, 0};
-		if (!buf || cap == 0)
-				return w;
-		while (w.len + 1 < cap && buf[w.len] != '\0')
-				w.len++;
-		return w;
-}
 
 // "v_{3} = 3v_{1} + v_{2}" for one dependent column
 ErrorCode write_relation(const DependencyCtx* ctx, std::uint8_t dep_index, Writer& w) noexcept {
@@ -73,22 +60,54 @@ ErrorCode write_relation(const DependencyCtx* ctx, std::uint8_t dep_index, Write
 
 std::size_t dependency_step_count(const void* vctx) noexcept {
 		const auto* ctx = static_cast<const DependencyCtx*>(vctx);
-		const std::size_t tail = ctx->info.independent ? kTailIndependent : kTailDependent;
-		return 1 + ctx->op_count + tail;
+		const bool relations = (ctx->purpose == DependencyPurpose::Vectors) && !ctx->info.independent;
+		return 1 + ctx->op_count + (relations ? kTailDependent : kTailIndependent);
+}
+
+// "rank 2 < 4 rows: not onto" and friends: one clause comparing the rank with a
+// dimension, then the verdict that follows from it
+void caption_clause(
+        const DependencyCtx* ctx, std::uint8_t against, const char* noun, bool holds, const char* yes, const char* no, Writer& w) noexcept {
+		(void)w.append(detail::lbl(ctx->labels.rank_word, "rank"));
+		(void)w.put(' ');
+		(void)w.append_u64(static_cast<std::uint64_t>(ctx->info.rank));
+		(void)w.append(holds ? " = " : " < ");
+		(void)w.append_u64(static_cast<std::uint64_t>(against));
+		(void)w.put(' ');
+		(void)w.append(noun);
+		(void)w.append(": ");
+		(void)w.append(holds ? yes : no);
 }
 
 // "rank 2 < 3 vectors: linearly dependent"
 void caption_verdict(const DependencyCtx* ctx, Writer& w) noexcept {
-		(void)w.append(lbl(ctx->labels.rank_word, "rank"));
-		(void)w.put(' ');
-		(void)w.append_u64(static_cast<std::uint64_t>(ctx->info.rank));
-		(void)w.append(ctx->info.independent ? " = " : " < ");
-		(void)w.append_u64(static_cast<std::uint64_t>(ctx->info.vector_count));
-		(void)w.put(' ');
-		(void)w.append(lbl(ctx->labels.vectors_word, "vectors"));
-		(void)w.append(": ");
-		(void)w.append(ctx->info.independent ? lbl(ctx->labels.independent, "linearly independent")
-		                                     : lbl(ctx->labels.dependent, "linearly dependent"));
+		if (ctx->purpose == DependencyPurpose::Transformation) {
+				// onto is about the rows, one to one about the columns
+				caption_clause(ctx,
+				        ctx->info.dim,
+				        detail::lbl(ctx->labels.rows_word, "rows"),
+				        ctx->info.spans,
+				        detail::lbl(ctx->labels.onto, "onto"),
+				        detail::lbl(ctx->labels.not_onto, "not onto"),
+				        w);
+				(void)w.append("; ");
+				caption_clause(ctx,
+				        ctx->info.vector_count,
+				        detail::lbl(ctx->labels.cols_word, "columns"),
+				        ctx->info.independent,
+				        detail::lbl(ctx->labels.one_to_one, "one-to-one"),
+				        detail::lbl(ctx->labels.not_one_to_one, "not one-to-one"),
+				        w);
+				return;
+		}
+
+		caption_clause(ctx,
+		        ctx->info.vector_count,
+		        detail::lbl(ctx->labels.vectors_word, "vectors"),
+		        ctx->info.independent,
+		        detail::lbl(ctx->labels.independent, "linearly independent"),
+		        detail::lbl(ctx->labels.dependent, "linearly dependent"),
+		        w);
 }
 
 ErrorCode dependency_render_step(const void* vctx, std::size_t index, const StepRenderBuffers& out) noexcept {
@@ -106,43 +125,26 @@ ErrorCode dependency_render_step(const void* vctx, std::size_t index, const Step
 		if (index == 0) {
 				if (out.caption && out.caption_cap) {
 						Writer cw{out.caption, out.caption_cap, 0};
-						(void)cw.append(lbl(ctx->labels.vectors, "Columns are the vectors"));
+						(void)cw.append(detail::lbl(ctx->labels.vectors, "Columns are the vectors"));
 				}
 				return latex::write_matrix_display(ctx->input, latex::MatrixBrackets::BMatrix, {out.latex, out.latex_cap});
 		}
 
 		if (index <= ctx->op_count) {
 				MatrixMutView work{};
-				ErrorCode ec = matrix_clone(*out.scratch, ctx->input, &work);
+				RowOp last_op{};
+				ErrorCode ec = detail::replay_echelon(ctx->input, EchelonKind::Rref, index, *out.scratch, &work, &last_op);
 				if (!is_ok(ec))
 						return ec;
 
-				OpObserver obs;
-				obs.target = index; // stop after applying `index` ops
-				ec = echelon_apply(work, EchelonKind::Rref, &obs);
-				if (!is_ok(ec))
-						return ec;
-				if (obs.count < index)
-						return ErrorCode::StepOutOfRange;
-
-				if (out.caption && out.caption_cap) {
-						// captions are best effort: a truncated caption must not cost
-						// the student the matrix itself
-						ec = row_op_caption(obs.last_op, out.caption, out.caption_cap);
-						if (!is_ok(ec) && ec != ErrorCode::BufferTooSmall)
-								return ec;
-						if (index == ctx->op_count) {
-								Writer cw = writer_at_end(out.caption, out.caption_cap);
-								(void)cw.append("  ");
-								(void)cw.append(lbl(ctx->labels.rref, "RREF"));
-						}
-				}
+				detail::step_row_caption(last_op, index == ctx->op_count, ctx->labels.rref, out.caption, out.caption_cap);
 
 				return latex::write_matrix_display(work.view(), latex::MatrixBrackets::BMatrix, {out.latex, out.latex_cap});
 		}
 
 		const std::size_t tail = index - ctx->op_count - 1;
-		const std::size_t tail_count = ctx->info.independent ? kTailIndependent : kTailDependent;
+		const bool relations = (ctx->purpose == DependencyPurpose::Vectors) && !ctx->info.independent;
+		const std::size_t tail_count = relations ? kTailDependent : kTailIndependent;
 		if (tail >= tail_count)
 				return ErrorCode::StepOutOfRange;
 
@@ -157,7 +159,7 @@ ErrorCode dependency_render_step(const void* vctx, std::size_t index, const Step
 		// relations: one line per dependent vector
 		if (out.caption && out.caption_cap) {
 				Writer cw{out.caption, out.caption_cap, 0};
-				(void)cw.append(lbl(ctx->labels.relation, "Read off the RREF columns"));
+				(void)cw.append(detail::lbl(ctx->labels.relation, "Read off the RREF columns"));
 		}
 
 		Writer w{out.latex, out.latex_cap, 0};
@@ -194,7 +196,8 @@ Error op_dependency(MatrixView a,
         DependencyInfo* info,
         Explanation* expl,
         const ExplainOptions& opts,
-        const DependencyLabels& labels) noexcept {
+        const DependencyLabels& labels,
+        DependencyPurpose purpose) noexcept {
 		if (!out_rref || !info)
 				return {ErrorCode::Internal};
 		if (!a.data)
@@ -255,6 +258,7 @@ Error op_dependency(MatrixView a,
 				ctx->rref = rref.view();
 				ctx->info = result;
 				ctx->labels = labels;
+				ctx->purpose = purpose;
 				ctx->op_count = obs.count;
 				*expl = Explanation::make(ctx, &kDependencyVTable);
 		}

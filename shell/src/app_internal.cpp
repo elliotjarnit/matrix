@@ -117,8 +117,11 @@ constexpr OpMeta kOpMeta[] = {
 #else
         {TextId::None, true, false},
 #endif
+        /* Invertible */ {"op.invertible"_tid, false, true},
+        /* Transformation */ {"op.transformation"_tid, false, true},
+        /* MulColRow */ {"op.mul_colrow"_tid, true, true},
 };
-static_assert(sizeof(kOpMeta) / sizeof(kOpMeta[0]) == static_cast<std::size_t>(OperationId::LuSolve) + 1u, "Update kOpMeta");
+static_assert(sizeof(kOpMeta) / sizeof(kOpMeta[0]) == static_cast<std::size_t>(OperationId::MulColRow) + 1u, "Update kOpMeta");
 
 const OpMeta& op_meta(OperationId op) noexcept {
 		const std::size_t idx = static_cast<std::size_t>(op);
@@ -139,6 +142,32 @@ bool op_enabled(OperationId op) noexcept {
 const char* op_name(OperationId op) noexcept {
 		const OpMeta& meta = op_meta(op);
 		return meta.enabled ? tr(meta.name) : "common.disabled"_tx;
+}
+
+matrix_core::DependencyLabels dependency_labels() noexcept {
+		matrix_core::DependencyLabels labels{};
+		labels.vectors = "dep.vectors"_tx;
+		labels.rref = "dep.rref"_tx;
+		labels.independent = "dep.independent"_tx;
+		labels.dependent = "dep.dependent"_tx;
+		labels.vectors_word = "dep.vectors_word"_tx;
+		labels.rank_word = "dep.rank_word"_tx;
+		labels.relation = "dep.relation"_tx;
+		labels.onto = "dep.onto"_tx;
+		labels.not_onto = "dep.not_onto"_tx;
+		labels.one_to_one = "dep.one_to_one"_tx;
+		labels.not_one_to_one = "dep.not_one_to_one"_tx;
+		labels.rows_word = "dep.rows_word"_tx;
+		labels.cols_word = "dep.cols_word"_tx;
+		return labels;
+}
+
+matrix_core::ColRowLabels colrow_labels() noexcept {
+		matrix_core::ColRowLabels labels{};
+		labels.intro = "colrow.intro"_tx;
+		labels.term = "colrow.term"_tx;
+		labels.sum = "colrow.sum"_tx;
+		return labels;
 }
 
 matrix_core::LuLabels lu_labels() noexcept {

@@ -290,6 +290,162 @@ int main() {
 				assert(expl.render_step(expl.step_count() - 1, bad) == ErrorCode::BufferTooSmall);
 		}
 
+		// Math 210 Review Exam 1a, Q5: T : R^3 -> R^4, T(x,y,z) = (3x+y, x+y, 0, 2x)
+		// Standard matrix has T(e_1), T(e_2), T(e_3) as its columns.
+		{
+				Harness h;
+				const std::int64_t av[] = {3, 1, 0, 1, 1, 0, 0, 0, 0, 2, 0, 0};
+				MatrixMutView a = mat(h.persist, 4, 3, av);
+
+				MatrixMutView rref{};
+				DependencyInfo info{};
+				Explanation expl;
+				ExplainOptions opts{.enable = true, .persist = &h.persist};
+				auto err = matrix_core::op_dependency(a.view(),
+				        h.persist,
+				        &rref,
+				        &info,
+				        &expl,
+				        opts,
+				        matrix_core::DependencyLabels{},
+				        matrix_core::DependencyPurpose::Transformation);
+				assert(matrix_core::is_ok(err));
+
+				assert(info.rank == 2);
+				assert(info.dim == 4);          // R^4 is the codomain
+				assert(info.vector_count == 3); // R^3 is the domain
+				assert(!info.spans);            // rank 2 < 4: not onto
+				assert(!info.independent);      // rank 2 < 3: not one-to-one
+
+				// a transformation stops at the verdict: no dependency relations
+				const std::size_t n_steps = expl.step_count();
+				for (std::size_t i = 0; i < n_steps; i++)
+						(void)render(expl, i, h.scratch);
+
+				StepRenderBuffers bufs{g_caption, sizeof(g_caption), g_latex, sizeof(g_latex), &h.scratch};
+				assert(expl.render_step(n_steps - 1, bufs) == ErrorCode::Ok);
+				assert(std::strstr(g_caption, "rank 2 < 4 rows: not onto") != nullptr);
+				assert(std::strstr(g_caption, "rank 2 < 3 columns: not one-to-one") != nullptr);
+				assert(expl.render_step(n_steps, bufs) == ErrorCode::StepOutOfRange);
+		}
+
+		// Math 210 Review Exam 1a, Q6: T : R^4 -> R^2, T(x1,x2,x3,x4) = (x1, 2x1)
+		{
+				Harness h;
+				const std::int64_t av[] = {1, 0, 0, 0, 2, 0, 0, 0};
+				MatrixMutView a = mat(h.persist, 2, 4, av);
+
+				MatrixMutView rref{};
+				DependencyInfo info{};
+				Explanation expl;
+				ExplainOptions opts{.enable = true, .persist = &h.persist};
+				auto err = matrix_core::op_dependency(a.view(),
+				        h.persist,
+				        &rref,
+				        &info,
+				        &expl,
+				        opts,
+				        matrix_core::DependencyLabels{},
+				        matrix_core::DependencyPurpose::Transformation);
+				assert(matrix_core::is_ok(err));
+
+				assert(info.rank == 1);
+				assert(!info.spans);       // rank 1 < 2: not onto
+				assert(!info.independent); // rank 1 < 4: not one-to-one
+
+				const std::size_t n_steps = expl.step_count();
+				for (std::size_t i = 0; i < n_steps; i++)
+						(void)render(expl, i, h.scratch);
+				StepRenderBuffers bufs{g_caption, sizeof(g_caption), g_latex, sizeof(g_latex), &h.scratch};
+				assert(expl.render_step(n_steps - 1, bufs) == ErrorCode::Ok);
+				assert(std::strstr(g_caption, "not onto") != nullptr);
+				assert(std::strstr(g_caption, "not one-to-one") != nullptr);
+		}
+
+		// onto but not one-to-one: A = [1 0 0 ; 0 1 0] maps R^3 onto R^2
+		{
+				Harness h;
+				const std::int64_t av[] = {1, 0, 0, 0, 1, 0};
+				MatrixMutView a = mat(h.persist, 2, 3, av);
+
+				MatrixMutView rref{};
+				DependencyInfo info{};
+				Explanation expl;
+				ExplainOptions opts{.enable = true, .persist = &h.persist};
+				assert(matrix_core::is_ok(matrix_core::op_dependency(a.view(),
+				        h.persist,
+				        &rref,
+				        &info,
+				        &expl,
+				        opts,
+				        matrix_core::DependencyLabels{},
+				        matrix_core::DependencyPurpose::Transformation)));
+
+				assert(info.rank == 2);
+				assert(info.spans);        // rank 2 = 2 rows: onto
+				assert(!info.independent); // rank 2 < 3 columns: not one-to-one
+
+				const std::size_t n_steps = expl.step_count();
+				StepRenderBuffers bufs{g_caption, sizeof(g_caption), g_latex, sizeof(g_latex), &h.scratch};
+				assert(expl.render_step(n_steps - 1, bufs) == ErrorCode::Ok);
+				assert(std::strstr(g_caption, "rank 2 = 2 rows: onto") != nullptr);
+				assert(std::strstr(g_caption, "rank 2 < 3 columns: not one-to-one") != nullptr);
+		}
+
+		// both: the identity on R^2 is onto and one-to-one
+		{
+				Harness h;
+				const std::int64_t av[] = {1, 0, 0, 1};
+				MatrixMutView a = mat(h.persist, 2, 2, av);
+
+				MatrixMutView rref{};
+				DependencyInfo info{};
+				Explanation expl;
+				ExplainOptions opts{.enable = true, .persist = &h.persist};
+				assert(matrix_core::is_ok(matrix_core::op_dependency(a.view(),
+				        h.persist,
+				        &rref,
+				        &info,
+				        &expl,
+				        opts,
+				        matrix_core::DependencyLabels{},
+				        matrix_core::DependencyPurpose::Transformation)));
+
+				assert(info.spans && info.independent);
+
+				StepRenderBuffers bufs{g_caption, sizeof(g_caption), g_latex, sizeof(g_latex), &h.scratch};
+				assert(expl.render_step(expl.step_count() - 1, bufs) == ErrorCode::Ok);
+				assert(std::strstr(g_caption, "rank 2 = 2 rows: onto") != nullptr);
+				assert(std::strstr(g_caption, "rank 2 = 2 columns: one-to-one") != nullptr);
+		}
+
+		// the Vectors purpose is unaffected: it still ends with the relations
+		{
+				Harness h;
+				const std::int64_t av[] = {1, 0, 3, 3, 4, 13};
+				MatrixMutView a = mat(h.persist, 2, 3, av);
+
+				MatrixMutView rref{};
+				DependencyInfo info{};
+				Explanation vec_expl;
+				Explanation tr_expl;
+				ExplainOptions opts{.enable = true, .persist = &h.persist};
+				assert(matrix_core::is_ok(matrix_core::op_dependency(a.view(), h.persist, &rref, &info, &vec_expl, opts)));
+				assert(matrix_core::is_ok(matrix_core::op_dependency(a.view(),
+				        h.persist,
+				        &rref,
+				        &info,
+				        &tr_expl,
+				        opts,
+				        matrix_core::DependencyLabels{},
+				        matrix_core::DependencyPurpose::Transformation)));
+
+				// the transformation reading drops exactly the relations step
+				assert(vec_expl.step_count() == tr_expl.step_count() + 1);
+				assert(std::strcmp(render(vec_expl, vec_expl.step_count() - 1, h.scratch),
+				               "$$\\begin{array}{l}v_{3} = 3v_{1} + v_{2}\\end{array}$$") == 0);
+		}
+
 #if defined(MATRIX_CE_TESTS)
 		dbg_printf("[test_dependency] all asserts passed\n");
 #endif

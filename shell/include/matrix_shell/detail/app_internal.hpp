@@ -41,6 +41,8 @@ const char* op_name(OperationId op) noexcept;
 
 // translated prose fragments for the LU explanations, resolved through the
 // text catalog (core has no catalog of its own)
+matrix_core::DependencyLabels dependency_labels() noexcept;
+matrix_core::ColRowLabels colrow_labels() noexcept;
 matrix_core::LuLabels lu_labels() noexcept;
 
 void dbg_print_i64(std::int64_t v) noexcept;

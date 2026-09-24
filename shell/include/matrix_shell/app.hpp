@@ -28,6 +28,7 @@ enum class MenuId : std::uint8_t {
 		Spaces,
 		AddSub,
 		RefRref,
+		Multiply,
 		SlotList, // A..H (edit)
 };
 
@@ -55,6 +56,9 @@ enum class OperationId : std::uint8_t {
 		Rref,
 		LuFactor,
 		LuSolve,
+		Invertible,
+		Transformation,
+		MulColRow,
 };
 
 struct MenuState {
@@ -341,6 +345,8 @@ class App {
 		// LU entry points, shared by the slot picker and the row swap prompt.
 		// On success each pops the current page and pushes the result; when a swap
 		// is needed and `allow_swaps` is false they push the confirmation instead.
+		void run_invertible(std::uint8_t slot) noexcept;
+		void run_transformation(std::uint8_t slot) noexcept;
 		void run_lu_factor(std::uint8_t slot, bool allow_swaps) noexcept;
 		void run_lu_solve(std::uint8_t slot_a, std::uint8_t slot_b, bool allow_swaps) noexcept;
 
