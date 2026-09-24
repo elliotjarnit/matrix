@@ -100,7 +100,7 @@ A zero pivot with a nonzero entry below it cannot be eliminated without swapping
 
 1. From the main menu, select **Matrices** -> **Edit A**
 2. Set the dimensions (e.g., 3x3) using the arrow keys then press **[enter]**
-3. Navigate to each cell with the arrow keys, press **[enter]** to type a value and confirm with **[enter]**
+3. Navigate to each cell with the arrow keys and just type a number, confirm with **[enter]** and the cursor moves to the next cell
 4. Press **[clear]** to finish editing, then go to **Operations** -> **Determinant**
 5. Select slot **A**. the determinant is computed and displayed
 6. Press a key to view the **step by step** cofactor expansion, rendered in LaTeX
