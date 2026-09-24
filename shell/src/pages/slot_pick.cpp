@@ -147,6 +147,12 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						return;
 				}
 #endif
+#if !MATRIX_SHELL_ENABLE_LU
+				if (s.op == OperationId::LuFactor) {
+						show_message("common.disabled_build_short"_tx);
+						return;
+				}
+#endif
 
 #if MATRIX_SHELL_ENABLE_MINOR_MATRIX && MATRIX_CORE_ENABLE_MINOR_MATRIX
 				if (s.op == OperationId::MinorMatrix) {
@@ -394,7 +400,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						Page p = Page::make_result_scalar(s.op, sel, 0, expl_.available(), ok ? 1 : 0, 1);
 						p.u.result.rows = a.rows;
 						p.u.result.cols = a.cols;
-						p.u.result.i = info.rank;    // rank
+						p.u.result.i = info.rank; // rank
 						p.u.result.j = 0;
 						// For span/independence, `num` is the boolean (YES/NO) and `den` stores the pivot mask.
 						p.u.result.num = ok ? 1 : 0;
@@ -437,7 +443,8 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 								return;
 						}
 
-						const matrix_core::Error err = matrix_core::op_echelon(input, matrix_core::EchelonKind::Rref, rref, &expl, opts_steps);
+						const matrix_core::Error err =
+						        matrix_core::op_echelon(input, matrix_core::EchelonKind::Rref, rref, &expl, opts_steps);
 						if (!matrix_core::is_ok(err)) {
 								show_message("common.error"_tx);
 								return;
@@ -460,7 +467,8 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 										return;
 								}
 						} else if (s.op == OperationId::RowSpaceBasis) {
-								const matrix_core::ErrorCode ec_o = matrix_core::space_row_basis(rref.view(), input.cols, info, persist_, &out);
+								const matrix_core::ErrorCode ec_o =
+								        matrix_core::space_row_basis(rref.view(), input.cols, info, persist_, &out);
 								if (!matrix_core::is_ok(ec_o)) {
 										show_message("common.out_of_memory"_tx);
 										return;
@@ -468,7 +476,8 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						} else {
 								// Null(A) or Null(A^T)
 								const std::uint8_t var_cols = input.cols;
-								const matrix_core::ErrorCode ec_o = matrix_core::space_null_basis(rref.view(), var_cols, info, persist_, &out);
+								const matrix_core::ErrorCode ec_o =
+								        matrix_core::space_null_basis(rref.view(), var_cols, info, persist_, &out);
 								if (!matrix_core::is_ok(ec_o)) {
 										show_message("common.out_of_memory"_tx);
 										return;
@@ -478,9 +487,9 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						tx.commit();
 						expl_ = std::move(expl);
 						Page p = Page::make_result_matrix(s.op, sel, 0, expl_.available(), out.rows, out.cols, out.stride, out.data);
-						p.u.result.i = info.rank;    // rank
-						p.u.result.j = nullity;     // nullity (in the working variable space)
-						p.u.result.num = piv_mask;  // pivot mask (LSB = col 1)
+						p.u.result.i = info.rank;  // rank
+						p.u.result.j = nullity;    // nullity (in the working variable space)
+						p.u.result.num = piv_mask; // pivot mask (LSB = col 1)
 						p.u.result.den = 1;
 						REQUIRE(pop(), "pop failed (spaces)");
 						REQUIRE(push(p), "push spaces result failed");
@@ -522,6 +531,13 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						        "push echelon result failed");
 						return;
 				}
+
+#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
+				if (s.op == OperationId::LuFactor) {
+						run_lu_factor(sel, false);
+						return;
+				}
+#endif
 
 				fail_fast("Unhandled unary OperationId in update_slot_pick");
 		}
@@ -655,6 +671,19 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 				return;
 		}
 #endif
+#if !MATRIX_SHELL_ENABLE_LU
+		if (s.op == OperationId::LuSolve) {
+				show_message("common.disabled_build_short"_tx);
+				return;
+		}
+#endif
+
+#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
+		if (s.op == OperationId::LuSolve) {
+				run_lu_solve(a_slot, b_slot, false);
+				return;
+		}
+#endif
 
 		if (s.op == OperationId::SolveRref) {
 				if (b.cols != 1 || b.rows != a.rows) {
@@ -697,7 +726,8 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						return;
 				}
 
-				const matrix_core::Error err = matrix_core::op_echelon(aug.view(), matrix_core::EchelonKind::Rref, rref_aug, &expl, opts_steps);
+				const matrix_core::Error err =
+				        matrix_core::op_echelon(aug.view(), matrix_core::EchelonKind::Rref, rref_aug, &expl, opts_steps);
 				if (!matrix_core::is_ok(err)) {
 						show_message("common.error"_tx);
 						return;

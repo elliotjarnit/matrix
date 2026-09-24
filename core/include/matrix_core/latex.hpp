@@ -6,6 +6,7 @@
 #include "matrix_core/error.hpp"
 #include "matrix_core/matrix.hpp"
 #include "matrix_core/rational.hpp"
+#include "matrix_core/writer.hpp"
 
 namespace matrix_core::latex {
 struct Buffer {
@@ -31,4 +32,8 @@ ErrorCode write_matrix_display(In MatrixView m, In MatrixBrackets brackets, Out 
 //   \\left[\\begin{array}{rr|rr} ... \\end{array}\\right]
 ErrorCode write_augmented_matrix(In MatrixView left, In MatrixView right, Out Buffer out) noexcept;
 ErrorCode write_augmented_matrix_display(In MatrixView left, In MatrixView right, Out Buffer out) noexcept;
+
+// composable variants: append to an existing Writer instead of resetting a buffer
+ErrorCode append_matrix(In MatrixView m, In MatrixBrackets brackets, InOut Writer& w) noexcept;
+ErrorCode append_augmented_matrix(In MatrixView left, In MatrixView right, InOut Writer& w) noexcept;
 } // namespace matrix_core::latex

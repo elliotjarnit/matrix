@@ -166,9 +166,18 @@ void App::render_result(const ResultState& s) noexcept {
 		if (!s.data || s.rows < 1 || s.cols < 1 || s.stride < s.cols)
 				fail_fast("render_result: invalid matrix result state");
 
+#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
+		// LU solve stores consistency in `den`: 0 means the system has no solution
+		if (s.op == OperationId::LuSolve && s.den == 0) {
+				gfx_SetTextXY(l.margin_x, l.header_h + 30);
+				gfx_PrintString("result.lu_no_solution"_tx);
+				return;
+		}
+#endif
+
 		int grid_top = l.header_h + 8;
-		if (s.op == OperationId::SolveRref || s.op == OperationId::ColSpaceBasis || s.op == OperationId::RowSpaceBasis ||
-		        s.op == OperationId::NullSpaceBasis || s.op == OperationId::LeftNullSpaceBasis) {
+		if (s.op == OperationId::SolveRref || s.op == OperationId::LuSolve || s.op == OperationId::ColSpaceBasis ||
+		        s.op == OperationId::RowSpaceBasis || s.op == OperationId::NullSpaceBasis || s.op == OperationId::LeftNullSpaceBasis) {
 				gfx_SetTextXY(l.margin_x, l.header_h + 4);
 				gfx_PrintString("result.rank_eq"_tx);
 				fmt_buf_[0] = '\0';
@@ -189,7 +198,7 @@ void App::render_result(const ResultState& s) noexcept {
 				gfx_SetTextXY(l.margin_x, l.header_h + 16);
 				if (s.op == OperationId::RowSpaceBasis) {
 						gfx_PrintString("result.rows_basis"_tx);
-				} else if (s.op == OperationId::SolveRref) {
+				} else if (s.op == OperationId::SolveRref || s.op == OperationId::LuSolve) {
 						if (s.cols == 1) {
 								gfx_PrintString("result.solution_vector"_tx);
 						} else {

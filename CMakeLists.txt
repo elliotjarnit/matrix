@@ -74,6 +74,12 @@ if(MATRIX_FEATURE_MINOR_MATRIX)
   )
 endif()
 
+if(MATRIX_FEATURE_LU)
+  list(APPEND MATRIX_CORE_SOURCES
+    ${MATRIX_CORE_DIR}/src/ops_lu_ondemand.cpp
+  )
+endif()
+
 if(MATRIX_BUILD_CE)
   set(MATRIX_LIBTEXCE_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/libtexce")
 
@@ -105,6 +111,7 @@ if(MATRIX_BUILD_CE)
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/confirm.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/dim.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/editor.cpp
+      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/lu.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/menu.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/result.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/slot_pick.cpp
@@ -242,13 +249,17 @@ function(matrix_core_apply target_name)
   endif()
 endfunction()
 
-add_executable(matrix_profile_cramer
-  ${MATRIX_CORE_SOURCES}
-  ${MATRIX_CORE_HEADERS}
-  ${MATRIX_CORE_DIR}/profile/profile_cramer.cpp
-)
-matrix_core_apply(matrix_profile_cramer)
-target_compile_options(matrix_profile_cramer PRIVATE -fstack-usage)
+# Optional profiling helper; the source is not checked in, so only build it
+# when present rather than failing configure for everyone.
+if(EXISTS ${MATRIX_CORE_DIR}/profile/profile_cramer.cpp)
+  add_executable(matrix_profile_cramer
+    ${MATRIX_CORE_SOURCES}
+    ${MATRIX_CORE_HEADERS}
+    ${MATRIX_CORE_DIR}/profile/profile_cramer.cpp
+  )
+  matrix_core_apply(matrix_profile_cramer)
+  target_compile_options(matrix_profile_cramer PRIVATE -fstack-usage)
+endif()
 
 if(MATRIX_ENABLE_TESTS)
   enable_testing()
@@ -329,6 +340,22 @@ if(MATRIX_ENABLE_TESTS)
   )
   matrix_core_apply(test_spaces)
 
+  if(MATRIX_FEATURE_LU)
+    add_executable(test_lu
+      ${MATRIX_CORE_SOURCES}
+      ${MATRIX_CORE_HEADERS}
+      ${MATRIX_CORE_DIR}/tests/test_lu.cpp
+    )
+    matrix_core_apply(test_lu)
+  endif()
+
+  add_executable(test_arena_guards
+    ${MATRIX_CORE_SOURCES}
+    ${MATRIX_CORE_HEADERS}
+    ${MATRIX_CORE_DIR}/tests/test_arena_guards.cpp
+  )
+  matrix_core_apply(test_arena_guards)
+
   add_test(NAME rational COMMAND test_rational)
   add_test(NAME matrix_ops COMMAND test_matrix_ops)
   add_test(NAME rref COMMAND test_rref)
@@ -336,6 +363,7 @@ if(MATRIX_ENABLE_TESTS)
   add_test(NAME inverse COMMAND test_inverse)
   add_test(NAME vectors COMMAND test_vectors)
   add_test(NAME spaces COMMAND test_spaces)
+  add_test(NAME arena_guards COMMAND test_arena_guards)
 
   if(MATRIX_FEATURE_MINOR_MATRIX)
     add_test(NAME minor_matrix COMMAND test_minor_matrix)
@@ -345,5 +373,8 @@ if(MATRIX_ENABLE_TESTS)
   endif()
   if(MATRIX_FEATURE_CRAMER)
     add_test(NAME cramer COMMAND test_cramer)
+  endif()
+  if(MATRIX_FEATURE_LU)
+    add_test(NAME lu COMMAND test_lu)
   endif()
 endif()

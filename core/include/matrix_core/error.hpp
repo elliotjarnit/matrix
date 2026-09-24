@@ -20,6 +20,7 @@ enum class ErrorCode : std::uint8_t {
 		DimensionMismatch,
 		NotSquare,
 		Singular,
+		RowSwapRequired,
 		DivisionByZero,
 		Overflow,
 		BufferTooSmall,
@@ -60,5 +61,9 @@ constexpr Error err_invalid_dim(Dim a) noexcept {
 }
 constexpr Error err_feature_disabled() noexcept {
 		return {ErrorCode::FeatureDisabled};
+}
+// row `i` / column `j` (0 based) where LU would need a row swap
+constexpr Error err_row_swap_required(Dim a, std::uint8_t row, std::uint8_t col) noexcept {
+		return {ErrorCode::RowSwapRequired, a, {}, row, col};
 }
 } // namespace matrix_core

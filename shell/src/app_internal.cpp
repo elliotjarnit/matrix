@@ -69,13 +69,13 @@ constexpr OpMeta kOpMeta[] = {
         /* Mul */ {"op.mul"_tid, true, true},
         /* Dot */ {"op.dot"_tid, true, true},
         /* Cross */ {"op.cross"_tid, true, true},
-        /* Projection */
+/* Projection */
 #if MATRIX_SHELL_ENABLE_PROJECTION && MATRIX_CORE_ENABLE_PROJECTION
         {"op.projection"_tid, true, true},
 #else
         {TextId::None, false, false},
 #endif
-        /* Cramer */
+/* Cramer */
 #if MATRIX_SHELL_ENABLE_CRAMER && MATRIX_CORE_ENABLE_CRAMER
         {"op.cramer"_tid, true, true},
 #else
@@ -91,13 +91,13 @@ constexpr OpMeta kOpMeta[] = {
         /* RowSpaceBasis */ {"op.row_basis"_tid, false, true},
         /* NullSpaceBasis */ {"op.null_basis"_tid, false, true},
         /* LeftNullSpaceBasis */ {"op.left_null_basis"_tid, false, true},
-        /* MinorMatrix */
+/* MinorMatrix */
 #if MATRIX_SHELL_ENABLE_MINOR_MATRIX && MATRIX_CORE_ENABLE_MINOR_MATRIX
         {"op.minor_matrix"_tid, false, true},
 #else
         {TextId::None, false, false},
 #endif
-        /* CofactorElement */
+/* CofactorElement */
 #if MATRIX_SHELL_ENABLE_COFACTOR && MATRIX_CORE_ENABLE_COFACTOR
         {"op.cofactor"_tid, false, true},
 #else
@@ -105,8 +105,20 @@ constexpr OpMeta kOpMeta[] = {
 #endif
         /* Ref */ {"op.ref"_tid, false, true},
         /* Rref */ {"op.rref"_tid, false, true},
+/* LuFactor */
+#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
+        {"op.lu_factor"_tid, false, true},
+#else
+        {TextId::None, false, false},
+#endif
+/* LuSolve */
+#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
+        {"op.lu_solve"_tid, true, true},
+#else
+        {TextId::None, true, false},
+#endif
 };
-static_assert(sizeof(kOpMeta) / sizeof(kOpMeta[0]) == static_cast<std::size_t>(OperationId::Rref) + 1u, "Update kOpMeta");
+static_assert(sizeof(kOpMeta) / sizeof(kOpMeta[0]) == static_cast<std::size_t>(OperationId::LuSolve) + 1u, "Update kOpMeta");
 
 const OpMeta& op_meta(OperationId op) noexcept {
 		const std::size_t idx = static_cast<std::size_t>(op);
@@ -127,6 +139,20 @@ bool op_enabled(OperationId op) noexcept {
 const char* op_name(OperationId op) noexcept {
 		const OpMeta& meta = op_meta(op);
 		return meta.enabled ? tr(meta.name) : "common.disabled"_tx;
+}
+
+matrix_core::LuLabels lu_labels() noexcept {
+		matrix_core::LuLabels labels{};
+		labels.skip_column = "lu.skip_column"_tx;
+		labels.check = "lu.check"_tx;
+		labels.forward = "lu.forward"_tx;
+		labels.back = "lu.back"_tx;
+		labels.inconsistent = "lu.inconsistent"_tx;
+		labels.particular = "lu.particular"_tx;
+		labels.homogeneous = "lu.homogeneous"_tx;
+		labels.summary = "lu.summary"_tx;
+		labels.swap_rows = "lu.swap_rows"_tx;
+		return labels;
 }
 
 void dbg_print_i64(std::int64_t v) noexcept {

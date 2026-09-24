@@ -38,6 +38,9 @@ Linear algebra courses require you to work through lengthy and repetitive calcul
 | **Transpose** | Transpose of any matrix |
 | **Determinant** | Cofactor expansion with smart row/column selection |
 | **Inverse** | Gauss-Jordan elimination on the augmented matrix [A \| I] |
+| **LU Factorization** | Doolittle LU (no row swaps) with the multipliers shown as they fill L |
+| **LU Solve** | Ax = b through LU: forward substitution, then back substitution or row reduction |
+| **PA = LU** | Optional partial pivoting when a zero pivot blocks the plain factorization |
 | **REF / RREF** | Row Echelon Form and Reduced Row Echelon Form |
 | **Cramer's Rule** | Solve Ax = b with per-Δ step breakdowns |
 | **Minor / Cofactor** | Compute M\_{ij} and C\_{ij} for any element |
@@ -63,13 +66,20 @@ Linear algebra courses require you to work through lengthy and repetitive calcul
 | **Independence Test** | Test whether a set of vectors is linearly independent |
 | **Solve via RREF** | Solve a linear system using row reduction |
 
-### Step by Step Explanations
+### LU Factorization
 
-Every operation generates a detailed explanation:
+**LU Factorization** reduces A to an echelon form U using only row replacements, `R_i <- R_i - m R_r`, and records each multiplier at `L(i, r)` with the sign convention used in class: `R3 <- R3 - 4R1` gives `l31 = 4`, `R3 <- R3 + R1` gives `l31 = -1`. A does not have to be square. A column whose pivot position and everything below it is zero is skipped.
 
-- Navigate forward and backward through steps with the **left/right arrow keys**
-- Each step shows a plain text caption (e.g., `R_2 ← R_2 − 2R_2`) and a **LaTeX rendered matrix or expression**
-- For multi part operations like Cramers rule, a sub menu lets you inspect each individual Δ\_i determinant
+The steps walk through A, every row operation (with L filling in), the finished L and U, a check that L*U really is A, and a closing `A = LU` summary. Press **left/right** on the result screen to switch between the factors.
+
+**LU Solve** takes A and a vector b, runs the same factorization, then solves `Ly = b` by forward substitution and `Ux = y` by back substitution when U is square with a nonzero diagonal. Otherwise it row reduces `[U | y]` and reports either that the system is inconsistent (showing the offending row), or the general solution in parametric vector form with the free variables named. It finishes with an `Ax = b` check and a summary of L, U, y and x.
+
+### PA = LU
+
+A zero pivot with a nonzero entry below it cannot be eliminated without swapping rows. When that happens the program stops and asks **"Use row swaps (PA = LU)?"**, naming the column that needs the swap.
+
+- Press **[clear]** to decline: A has no LU factorization without a permutation.
+- Press **[enter]** to accept: rows are swapped only when a pivot is zero, each swap becomes its own step, the multipliers already recorded in L move with their rows, and the result screen gains a third factor P. The verification step then checks `P*A = L*U`, and LU Solve solves `Ly = Pb` before back substituting.
 
 ## Getting Started
 

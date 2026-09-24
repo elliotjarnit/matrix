@@ -33,7 +33,14 @@ Page Page::make_editor(std::uint8_t slot) noexcept {
 Page Page::make_confirm(std::uint8_t slot, ConfirmAction action) noexcept {
 		Page p{};
 		p.kind = PageKind::Confirm;
-		p.u.confirm = ConfirmState{slot, action};
+		p.u.confirm = ConfirmState{slot, 0, 0, action};
+		return p;
+}
+
+Page Page::make_confirm_lu(std::uint8_t slot_a, std::uint8_t slot_b, std::uint8_t col, ConfirmAction action) noexcept {
+		Page p{};
+		p.kind = PageKind::Confirm;
+		p.u.confirm = ConfirmState{slot_a, slot_b, col, action};
 		return p;
 }
 
@@ -120,6 +127,34 @@ Page Page::make_projection_result(std::uint8_t slot_u,
 		        .orth_data = orth_data,
 		        .k_num = k_num,
 		        .k_den = k_den,
+		};
+		return p;
+}
+
+Page Page::make_lu_result(std::uint8_t slot_a,
+        bool has_steps,
+        std::uint8_t rows,
+        std::uint8_t u_cols,
+        std::uint8_t stride_l,
+        const matrix_core::Rational* l_data,
+        std::uint8_t stride_u,
+        const matrix_core::Rational* u_data,
+        std::uint8_t stride_p,
+        const matrix_core::Rational* p_data) noexcept {
+		Page p{};
+		p.kind = PageKind::LuResult;
+		p.u.lu = LuResultState{
+		        .slot_a = slot_a,
+		        .mode = 0,
+		        .has_steps = has_steps,
+		        .rows = rows,
+		        .u_cols = u_cols,
+		        .stride_l = stride_l,
+		        .stride_u = stride_u,
+		        .stride_p = stride_p,
+		        .l_data = l_data,
+		        .u_data = u_data,
+		        .p_data = p_data,
 		};
 		return p;
 }

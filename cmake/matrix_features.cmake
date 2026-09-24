@@ -11,6 +11,10 @@ option(MATRIX_FEATURE_MINOR_MATRIX "Enable minor matrix operation" ${_matrix_opt
 option(MATRIX_FEATURE_COFACTOR "Enable cofactor element operation" ${_matrix_optional_default})
 option(MATRIX_FEATURE_CRAMER "Enable Cramer's rule operation (and det-replace-column helper for steps)" ${_matrix_optional_default})
 
+# LU is on by default everywhere, including the CE build: it is one of the
+# operations the program is used for day to day. Turn it off to save space.
+option(MATRIX_FEATURE_LU "Enable LU factorization and LU solve operations" ON)
+
 option(MATRIX_SHELL_DEBUG "Enable shell debug logging" OFF)
 
 function(matrix_resolve_feature_deps)
@@ -44,6 +48,12 @@ function(matrix_get_feature_compile_definitions out_var)
     list(APPEND defs MATRIX_CORE_ENABLE_CRAMER=0 MATRIX_SHELL_ENABLE_CRAMER=0)
   endif()
 
+  if(MATRIX_FEATURE_LU)
+    list(APPEND defs MATRIX_CORE_ENABLE_LU=1 MATRIX_SHELL_ENABLE_LU=1)
+  else()
+    list(APPEND defs MATRIX_CORE_ENABLE_LU=0 MATRIX_SHELL_ENABLE_LU=0)
+  endif()
+
   if(MATRIX_SHELL_DEBUG)
     list(APPEND defs MATRIX_SHELL_ENABLE_DEBUG=1)
   else()
@@ -61,5 +71,5 @@ function(matrix_get_feature_compile_options out_var)
 endfunction()
 
 function(matrix_print_feature_summary)
-  message(STATUS "Matrix features: PROJECTION=${MATRIX_FEATURE_PROJECTION} MINOR_MATRIX=${MATRIX_FEATURE_MINOR_MATRIX} COFACTOR=${MATRIX_FEATURE_COFACTOR} CRAMER=${MATRIX_FEATURE_CRAMER} SHELL_DEBUG=${MATRIX_SHELL_DEBUG}")
+  message(STATUS "Matrix features: PROJECTION=${MATRIX_FEATURE_PROJECTION} MINOR_MATRIX=${MATRIX_FEATURE_MINOR_MATRIX} COFACTOR=${MATRIX_FEATURE_COFACTOR} CRAMER=${MATRIX_FEATURE_CRAMER} LU=${MATRIX_FEATURE_LU} SHELL_DEBUG=${MATRIX_SHELL_DEBUG}")
 endfunction()

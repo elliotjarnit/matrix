@@ -65,6 +65,8 @@ constexpr MenuEntry kOperationsMenuEntries[] = {
         {"menu.entry.span_indep"_tid, MenuEntryKind::Submenu, MenuId::Span, OperationId::Add},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Transpose},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Inverse},
+        {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::LuFactor},
+        {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::LuSolve},
         {"menu.entry.spaces"_tid, MenuEntryKind::Submenu, MenuId::Spaces, OperationId::Add},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Projection},
 };
@@ -159,8 +161,7 @@ void App::render_menu(const MenuState& s) noexcept {
 				base_entries = kOperationsMenuEntries;
 				base_count = array_count(kOperationsMenuEntries);
 				render_footer_hint("footer.select_back"_tx);
-		}
-		else if (s.id == MenuId::Span) {
+		} else if (s.id == MenuId::Span) {
 				title = "menu.span.title"_tx;
 				base_ops = kSpanMenuOps;
 				base_ops_count = array_count(kSpanMenuOps);
@@ -265,8 +266,7 @@ void App::update_menu(MenuState& s) noexcept {
 		} else if (s.id == MenuId::Operations) {
 				base_entries = kOperationsMenuEntries;
 				base_count = array_count(kOperationsMenuEntries);
-		}
-		else if (s.id == MenuId::Span) {
+		} else if (s.id == MenuId::Span) {
 				base_ops = kSpanMenuOps;
 				base_ops_count = array_count(kSpanMenuOps);
 		} else if (s.id == MenuId::Spaces) {

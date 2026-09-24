@@ -78,6 +78,7 @@ Optional operations can be toggled at configure time to reduce binary size:
 | `MATRIX_FEATURE_MINOR_MATRIX` | ON | OFF | Full matrix of minors |
 | `MATRIX_FEATURE_COFACTOR` | ON | OFF | Single-element cofactor / minor |
 | `MATRIX_FEATURE_CRAMER` | ON | OFF | Cramer's rule solver |
+| `MATRIX_FEATURE_LU` | ON | ON | LU factorization and LU solve |
 
 Example: enable Cramer's rule on the CE build:
 
@@ -106,6 +107,7 @@ ctest --preset native
 | `test_rref` | REF and RREF with step verification |
 | `test_inverse` | Matrix inverse via Gauss-Jordan |
 | `test_cramer` | Cramer's rule solution and Δ/Δ\_i explanations |
+| `test_lu` | LU factorization (including PA = LU), substitution, and LU step rendering |
 | `test_vectors` | Dot product, cross product, projection |
 | `test_cofactor_element` | Single cofactor/minor with step rendering |
 | `test_minor_matrix` | Full matrix of minors |

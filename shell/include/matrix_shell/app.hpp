@@ -53,6 +53,8 @@ enum class OperationId : std::uint8_t {
 		CofactorElement,
 		Ref,
 		Rref,
+		LuFactor,
+		LuSolve,
 };
 
 struct MenuState {
@@ -108,10 +110,14 @@ struct ResultState {
 enum class ConfirmAction : std::uint8_t {
 		Resize,
 		Clear,
+		LuPivotFactor, // retry LU factorization with row swaps
+		LuPivotSolve,  // retry LU solve with row swaps
 };
 
 struct ConfirmState {
 		std::uint8_t slot;
+		std::uint8_t slot_b; // second operand, for the LU solve retry
+		std::uint8_t col;    // 0 based column that needs the swap (LU actions)
 		ConfirmAction action;
 };
 
@@ -129,6 +135,7 @@ enum class PageKind : std::uint8_t {
 		CofactorElement,
 		Result,
 		ProjectionResult,
+		LuResult,
 		CramerStepsMenu,
 		Steps,
 		Confirm,
@@ -159,6 +166,23 @@ struct ProjectionResultState {
 		std::int64_t k_den;
 };
 
+// the factors share a row count: L and P are rows x rows, U is rows x u_cols.
+// p_data is null unless row swaps were used.
+struct LuResultState {
+		std::uint8_t slot_a;
+		std::uint8_t mode; // 0=L, 1=U, 2=P
+		bool has_steps;
+
+		std::uint8_t rows;
+		std::uint8_t u_cols;
+		std::uint8_t stride_l;
+		std::uint8_t stride_u;
+		std::uint8_t stride_p;
+		const matrix_core::Rational* l_data;
+		const matrix_core::Rational* u_data;
+		const matrix_core::Rational* p_data;
+};
+
 struct CramerStepsMenuState {
 		std::uint8_t slot_a;
 		std::uint8_t slot_b;
@@ -182,6 +206,7 @@ struct Page {
 				CofactorElementState cofactor;
 				ResultState result;
 				ProjectionResultState proj;
+				LuResultState lu;
 				CramerStepsMenuState cramer_steps;
 				StepsState steps;
 				ConfirmState confirm;
@@ -213,11 +238,22 @@ struct Page {
 		        const matrix_core::Rational* orth_data,
 		        std::int64_t k_num,
 		        std::int64_t k_den) noexcept;
+		static Page make_lu_result(std::uint8_t slot_a,
+		        bool has_steps,
+		        std::uint8_t rows,
+		        std::uint8_t u_cols,
+		        std::uint8_t stride_l,
+		        const matrix_core::Rational* l_data,
+		        std::uint8_t stride_u,
+		        const matrix_core::Rational* u_data,
+		        std::uint8_t stride_p,
+		        const matrix_core::Rational* p_data) noexcept;
 		static Page make_cramer_steps_menu(std::uint8_t slot_a, std::uint8_t slot_b, std::uint8_t n) noexcept;
 		static Page make_result_cofactor_element(
 		        std::uint8_t slot_a, std::uint8_t i, std::uint8_t j, bool has_steps, std::int64_t num, std::int64_t den) noexcept;
 		static Page make_steps() noexcept;
 		static Page make_confirm(std::uint8_t slot, ConfirmAction action) noexcept;
+		static Page make_confirm_lu(std::uint8_t slot_a, std::uint8_t slot_b, std::uint8_t col, ConfirmAction action) noexcept;
 };
 
 struct Slot {
@@ -281,6 +317,7 @@ class App {
 		void render_slot_pick(const SlotPickState& s) noexcept;
 		void render_result(const ResultState& s) noexcept;
 		void render_projection_result(const ProjectionResultState& s) noexcept;
+		void render_lu_result(const LuResultState& s) noexcept;
 		void render_cramer_steps_menu(const CramerStepsMenuState& s) noexcept;
 		void render_steps(const StepsState& s) noexcept;
 		void render_cofactor_element(const CofactorElementState& s) noexcept;
@@ -296,9 +333,16 @@ class App {
 		void update_cofactor_element(CofactorElementState& s) noexcept;
 		void update_result(ResultState& s) noexcept;
 		void update_projection_result(ProjectionResultState& s) noexcept;
+		void update_lu_result(LuResultState& s) noexcept;
 		void update_cramer_steps_menu(CramerStepsMenuState& s) noexcept;
 		void update_steps(StepsState& s) noexcept;
 		void update_confirm(ConfirmState& s) noexcept;
+
+		// LU entry points, shared by the slot picker and the row swap prompt.
+		// On success each pops the current page and pushes the result; when a swap
+		// is needed and `allow_swaps` is false they push the confirmation instead.
+		void run_lu_factor(std::uint8_t slot, bool allow_swaps) noexcept;
+		void run_lu_solve(std::uint8_t slot_a, std::uint8_t slot_b, bool allow_swaps) noexcept;
 
 		matrix_core::ErrorCode ensure_slot_allocated(std::uint8_t slot) noexcept;
 		void clear_slot(std::uint8_t slot) noexcept;

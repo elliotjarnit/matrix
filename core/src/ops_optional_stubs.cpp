@@ -67,3 +67,52 @@ Error op_minor_matrix(MatrixView a, Arena& scratch, MatrixMutView out) noexcept 
 } // namespace matrix_core
 #endif // !MATRIX_CORE_ENABLE_MINOR_MATRIX
 
+#if !MATRIX_CORE_ENABLE_LU
+namespace matrix_core {
+
+Error op_lu_factor(MatrixView a,
+        LuPivoting pivoting,
+        MatrixMutView p_out,
+        MatrixMutView l_out,
+        MatrixMutView u_out,
+        const LuLabels* labels,
+        Explanation* expl,
+        const ExplainOptions& opts) noexcept {
+		(void)a;
+		(void)pivoting;
+		(void)p_out;
+		(void)l_out;
+		(void)u_out;
+		(void)labels;
+		(void)expl;
+		(void)opts;
+		return err_feature_disabled();
+}
+
+Error op_lu_solve(MatrixView a,
+        MatrixView b,
+        LuPivoting pivoting,
+        Arena& scratch,
+        MatrixMutView y_out,
+        MatrixMutView x_out,
+        MatrixMutView rref_out,
+        LuSolveInfo* info,
+        const LuLabels* labels,
+        Explanation* expl,
+        const ExplainOptions& opts) noexcept {
+		(void)a;
+		(void)b;
+		(void)pivoting;
+		(void)scratch;
+		(void)y_out;
+		(void)x_out;
+		(void)rref_out;
+		(void)info;
+		(void)labels;
+		(void)expl;
+		(void)opts;
+		return err_feature_disabled();
+}
+
+} // namespace matrix_core
+#endif // !MATRIX_CORE_ENABLE_LU

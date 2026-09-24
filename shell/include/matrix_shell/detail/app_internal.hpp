@@ -3,6 +3,8 @@
 #include "matrix_shell/app.hpp"
 #include "matrix_shell/config.hpp"
 
+#include "matrix_core/ops.hpp"
+
 #include <cstddef>
 #include <cstdint>
 
@@ -10,8 +12,8 @@
 #include <debug.h>
 #define SHELL_DBG(...) dbg_printf(__VA_ARGS__)
 #else
-#define SHELL_DBG(...) \
-		do {            \
+#define SHELL_DBG(...)                                                                                                                     \
+		do {                                                                                                                               \
 		} while (0)
 #endif
 
@@ -36,6 +38,10 @@ std::uint8_t keep_cursor_in_view(std::uint8_t cursor, std::uint8_t scroll, std::
 bool op_is_binary(OperationId op) noexcept;
 bool op_enabled(OperationId op) noexcept;
 const char* op_name(OperationId op) noexcept;
+
+// translated prose fragments for the LU explanations, resolved through the
+// text catalog (core has no catalog of its own)
+matrix_core::LuLabels lu_labels() noexcept;
 
 void dbg_print_i64(std::int64_t v) noexcept;
 void dbg_print_rational(matrix_core::Rational r) noexcept;

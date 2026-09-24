@@ -271,6 +271,11 @@ bool App::step() noexcept {
 				update_projection_result(p.u.proj);
 				break;
 #endif
+#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
+		case PageKind::LuResult:
+				update_lu_result(p.u.lu);
+				break;
+#endif
 #if MATRIX_SHELL_ENABLE_CRAMER && MATRIX_CORE_ENABLE_CRAMER
 		case PageKind::CramerStepsMenu:
 				update_cramer_steps_menu(p.u.cramer_steps);
@@ -356,6 +361,11 @@ void App::render() noexcept {
 #if MATRIX_SHELL_ENABLE_PROJECTION && MATRIX_CORE_ENABLE_PROJECTION
 		case PageKind::ProjectionResult:
 				render_projection_result(p.u.proj);
+				break;
+#endif
+#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
+		case PageKind::LuResult:
+				render_lu_result(p.u.lu);
 				break;
 #endif
 #if MATRIX_SHELL_ENABLE_CRAMER && MATRIX_CORE_ENABLE_CRAMER

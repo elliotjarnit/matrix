@@ -204,6 +204,14 @@ ErrorCode write_augmented_matrix(MatrixView left, MatrixView right, Buffer out) 
 		return write_augmented_matrix_inner(left, right, w);
 }
 
+ErrorCode append_matrix(MatrixView m, MatrixBrackets brackets, Writer& w) noexcept {
+		return write_matrix_inner(m, brackets, w);
+}
+
+ErrorCode append_augmented_matrix(MatrixView left, MatrixView right, Writer& w) noexcept {
+		return write_augmented_matrix_inner(left, right, w);
+}
+
 ErrorCode write_augmented_matrix_display(MatrixView left, MatrixView right, Buffer out) noexcept {
 		Writer w{out.data, out.cap, 0};
 		if (w.data && w.cap)
