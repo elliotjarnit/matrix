@@ -166,6 +166,82 @@ ErrorCode write_augmented_matrix_display_inner(MatrixView left, MatrixView right
 		return w.append("$$");
 }
 
+// writes "t_{k}" for parameter k (0 based)
+ErrorCode write_param_symbol(std::uint8_t k, Writer& w) noexcept {
+		ErrorCode ec = w.append("t_{");
+		if (!is_ok(ec))
+				return ec;
+		ec = w.append_index1(k);
+		if (!is_ok(ec))
+				return ec;
+		return w.append("}");
+}
+
+ErrorCode write_parametric_solution_inner(
+        const char* lhs, MatrixView particular, MatrixView basis, std::uint8_t param_count, Writer& w) noexcept {
+		if (!lhs)
+				return ErrorCode::Internal;
+		if (param_count > 0) {
+				if (!basis.data)
+						return ErrorCode::Internal;
+				if (param_count > basis.cols)
+						return ErrorCode::InvalidDimension;
+				if (particular.data && particular.rows != basis.rows)
+						return ErrorCode::DimensionMismatch;
+		}
+		if (particular.data && particular.cols != 1)
+				return ErrorCode::InvalidDimension;
+
+		ErrorCode ec = w.append(lhs);
+		if (!is_ok(ec))
+				return ec;
+		ec = w.append(" = ");
+		if (!is_ok(ec))
+				return ec;
+
+		bool wrote_term = false;
+
+		if (particular.data) {
+				ec = write_matrix_inner(particular, MatrixBrackets::BMatrix, w);
+				if (!is_ok(ec))
+						return ec;
+				wrote_term = true;
+		}
+
+		for (std::uint8_t k = 0; k < param_count; k++) {
+				if (wrote_term) {
+						ec = w.append(" + ");
+						if (!is_ok(ec))
+								return ec;
+				}
+				ec = write_param_symbol(k, w);
+				if (!is_ok(ec))
+						return ec;
+
+				const MatrixView col{basis.rows, 1, basis.stride, basis.data + k};
+				ec = write_matrix_inner(col, MatrixBrackets::BMatrix, w);
+				if (!is_ok(ec))
+						return ec;
+				wrote_term = true;
+		}
+
+		if (!wrote_term)
+				return w.append("0");
+
+		return ErrorCode::Ok;
+}
+
+ErrorCode write_parametric_solution_display_inner(
+        const char* lhs, MatrixView particular, MatrixView basis, std::uint8_t param_count, Writer& w) noexcept {
+		ErrorCode ec = w.append("$$");
+		if (!is_ok(ec))
+				return ec;
+		ec = write_parametric_solution_inner(lhs, particular, basis, param_count, w);
+		if (!is_ok(ec))
+				return ec;
+		return w.append("$$");
+}
+
 } // namespace
 
 ErrorCode write_rational(const Rational& r, Buffer out) noexcept {
@@ -217,6 +293,22 @@ ErrorCode write_augmented_matrix_display(MatrixView left, MatrixView right, Buff
 		if (w.data && w.cap)
 				w.data[0] = '\0';
 		return write_augmented_matrix_display_inner(left, right, w);
+}
+
+ErrorCode write_parametric_solution(
+        const char* lhs, MatrixView particular, MatrixView basis, std::uint8_t param_count, Buffer out) noexcept {
+		Writer w{out.data, out.cap, 0};
+		if (w.data && w.cap)
+				w.data[0] = '\0';
+		return write_parametric_solution_inner(lhs, particular, basis, param_count, w);
+}
+
+ErrorCode write_parametric_solution_display(
+        const char* lhs, MatrixView particular, MatrixView basis, std::uint8_t param_count, Buffer out) noexcept {
+		Writer w{out.data, out.cap, 0};
+		if (w.data && w.cap)
+				w.data[0] = '\0';
+		return write_parametric_solution_display_inner(lhs, particular, basis, param_count, w);
 }
 
 } // namespace matrix_core::latex

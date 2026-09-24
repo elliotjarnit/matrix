@@ -41,6 +41,46 @@ void render_pivot_cols(std::uint32_t mask, char* buf, std::size_t cap) noexcept 
 		if (first)
 				w.append("-");
 }
+
+// "t1=x3 t2=x5": which variable each parameter stands for. Free variables are
+// the non pivot columns, in the same ascending order as the basis vectors.
+void render_free_map(std::uint32_t pivot_mask, std::uint8_t var_count, char* buf, std::size_t cap) noexcept {
+		if (!buf || cap == 0)
+				return;
+		buf[0] = '\0';
+		matrix_core::CheckedWriter w{buf, cap};
+		std::uint8_t param = 0;
+		for (std::uint8_t c = 0; c < var_count; c++) {
+				if ((pivot_mask & (1u << c)) != 0)
+						continue;
+				if (param != 0)
+						w.put(' ');
+				w.put('t');
+				w.append_u64(static_cast<std::uint64_t>(param) + 1u);
+				w.append("=x");
+				w.append_u64(static_cast<std::uint64_t>(c) + 1u);
+				param++;
+		}
+}
+
+// "x = xp + t1v1 + t2v2"
+void render_param_equation(std::uint8_t param_count, bool has_particular, char* buf, std::size_t cap) noexcept {
+		if (!buf || cap == 0)
+				return;
+		buf[0] = '\0';
+		matrix_core::CheckedWriter w{buf, cap};
+		w.append("x = ");
+		if (has_particular)
+				w.append("xp");
+		for (std::uint8_t k = 0; k < param_count; k++) {
+				if (has_particular || k != 0)
+						w.append(" + ");
+				w.put('t');
+				w.append_u64(static_cast<std::uint64_t>(k) + 1u);
+				w.put('v');
+				w.append_u64(static_cast<std::uint64_t>(k) + 1u);
+		}
+}
 } // namespace
 
 void App::render_result(const ResultState& s) noexcept {
@@ -175,6 +215,14 @@ void App::render_result(const ResultState& s) noexcept {
 		}
 #endif
 
+		// the RREF solve reports an inconsistent system the same way, and keeps
+		// its steps so the work can still be written down
+		if (s.op == OperationId::SolveRref && s.den == 0) {
+				gfx_SetTextXY(l.margin_x, l.header_h + 30);
+				gfx_PrintString("result.solve_no_solution"_tx);
+				return;
+		}
+
 		int grid_top = l.header_h + 8;
 		if (s.op == OperationId::SolveRref || s.op == OperationId::LuSolve || s.op == OperationId::ColSpaceBasis ||
 		        s.op == OperationId::RowSpaceBasis || s.op == OperationId::NullSpaceBasis || s.op == OperationId::LeftNullSpaceBasis) {
@@ -198,7 +246,16 @@ void App::render_result(const ResultState& s) noexcept {
 				gfx_SetTextXY(l.margin_x, l.header_h + 16);
 				if (s.op == OperationId::RowSpaceBasis) {
 						gfx_PrintString("result.rows_basis"_tx);
-				} else if (s.op == OperationId::SolveRref || s.op == OperationId::LuSolve) {
+				} else if (s.op == OperationId::SolveRref) {
+						// the grid holds [x_p | v_1 .. v_k]; x_p is dropped only when every
+						// variable is free, where it is the zero vector anyway
+						const bool has_xp = (s.cols == static_cast<std::uint8_t>(s.j + 1u));
+						fmt_buf_[0] = '\0';
+						render_param_equation(s.j, has_xp, fmt_buf_, sizeof(fmt_buf_));
+						gfx_PrintString(fmt_buf_);
+						if (s.j == 0)
+								gfx_PrintString("result.solve_unique"_tx);
+				} else if (s.op == OperationId::LuSolve) {
 						if (s.cols == 1) {
 								gfx_PrintString("result.solution_vector"_tx);
 						} else {
@@ -208,6 +265,16 @@ void App::render_result(const ResultState& s) noexcept {
 						gfx_PrintString("result.cols_basis"_tx);
 				}
 				grid_top = l.header_h + 30;
+
+				// name the variable each parameter stands for
+				if (s.op == OperationId::SolveRref && s.j > 0) {
+						gfx_SetTextXY(l.margin_x, l.header_h + 28);
+						gfx_PrintString("result.solve_params"_tx);
+						fmt_buf_[0] = '\0';
+						render_free_map(static_cast<std::uint32_t>(s.num), s.rows, fmt_buf_, sizeof(fmt_buf_));
+						gfx_PrintString(fmt_buf_);
+						grid_top = l.header_h + 42;
+				}
 		}
 
 		const int grid_left = l.margin_x;
@@ -215,7 +282,7 @@ void App::render_result(const ResultState& s) noexcept {
 		const int max_rows = 6;
 
 		const int cell_w = (kScreenW - 2 * l.margin_x) / max_cols;
-		const int cell_h = (kScreenH - l.header_h - l.footer_h - 2 * l.margin_y) / max_rows;
+		const int cell_h = (kScreenH - grid_top - l.footer_h - l.margin_y) / max_rows;
 
 		const std::uint8_t rows = s.rows;
 		const std::uint8_t cols = s.cols;

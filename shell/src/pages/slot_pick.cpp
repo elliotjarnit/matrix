@@ -703,90 +703,38 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 				opts_steps.persist = &persist_;
 				matrix_core::Explanation expl;
 
-				const std::uint8_t m = a.rows;
-				const std::uint8_t n = a.cols;
+				matrix_core::ParametricLabels labels{};
+				labels.augmented = "solve.augmented"_tx;
+				labels.rref = "solve.rref"_tx;
+				labels.solve_pivots = "solve.solve_pivots"_tx;
+				labels.free_vars = "solve.free"_tx;
+				labels.homogeneous = "solve.homogeneous"_tx;
+				labels.complete = "solve.complete"_tx;
+				labels.inconsistent = "solve.inconsistent"_tx;
+				labels.unique = "solve.unique"_tx;
 
-				// Build augmented matrix [A | b] in persist so the step renderer can reference it.
-				matrix_core::MatrixMutView aug{};
-				const matrix_core::ErrorCode ec_aug = matrix_core::matrix_alloc(persist_, m, static_cast<std::uint8_t>(n + 1u), &aug);
-				if (!matrix_core::is_ok(ec_aug)) {
-						show_message("common.out_of_memory"_tx);
-						return;
-				}
-				for (std::uint8_t r = 0; r < m; r++) {
-						for (std::uint8_t c = 0; c < n; c++)
-								aug.at_mut(r, c) = a.at(r, c);
-						aug.at_mut(r, n) = b.at(r, 0);
-				}
-
-				matrix_core::MatrixMutView rref_aug{};
-				const matrix_core::ErrorCode ec_rref = matrix_core::matrix_alloc(scratch_, m, static_cast<std::uint8_t>(n + 1u), &rref_aug);
-				if (!matrix_core::is_ok(ec_rref)) {
-						show_message("common.out_of_memory"_tx);
-						return;
-				}
-
-				const matrix_core::Error err =
-				        matrix_core::op_echelon(aug.view(), matrix_core::EchelonKind::Rref, rref_aug, &expl, opts_steps);
-				if (!matrix_core::is_ok(err)) {
-						show_message("common.error"_tx);
-						return;
-				}
-
-				// Check for inconsistency: [0 ... 0 | c] with c != 0
-				for (std::uint8_t r = 0; r < m; r++) {
-						bool all_zero = true;
-						for (std::uint8_t c = 0; c < n; c++) {
-								if (!rref_aug.at(r, c).is_zero()) {
-										all_zero = false;
-										break;
-								}
-						}
-						if (all_zero && !rref_aug.at(r, n).is_zero()) {
-								show_message("msg.no_solution"_tx);
-								return;
-						}
-				}
-
-				matrix_core::SpaceInfo info{};
-				const matrix_core::ErrorCode ec_info = matrix_core::space_info_from_rref(rref_aug.view(), n, &info);
-				if (!matrix_core::is_ok(ec_info)) {
-						show_message("common.error"_tx);
-						return;
-				}
-				const std::uint32_t piv_mask = info.pivot_mask;
-				const std::uint8_t nullity = info.nullity;
-
-				// Particular solution: free vars = 0
 				matrix_core::MatrixMutView xp{};
-				const matrix_core::ErrorCode ec_xp = matrix_core::matrix_alloc(persist_, n, 1, &xp);
-				if (!matrix_core::is_ok(ec_xp)) {
-						show_message("common.out_of_memory"_tx);
-						return;
-				}
-				matrix_core::matrix_fill_zero(xp);
-				for (std::uint8_t pi = 0; pi < info.rank; pi++) {
-						const std::uint8_t pc = info.pivot_cols[pi];
-						const std::uint8_t pr = info.pivot_row_for_col[pc];
-						xp.at_mut(pc, 0) = rref_aug.at(pr, n);
-				}
-
-				// Null space basis for A
 				matrix_core::MatrixMutView n_basis{};
-				const matrix_core::ErrorCode ec_nb = matrix_core::space_null_basis(rref_aug.view(), n, info, persist_, &n_basis);
-				if (!matrix_core::is_ok(ec_nb)) {
-						show_message("common.out_of_memory"_tx);
+				matrix_core::ParametricSolution info{};
+				const matrix_core::Error err =
+				        matrix_core::op_solve_parametric(a, b, persist_, scratch_, &xp, &n_basis, &info, &expl, opts_steps, labels);
+				if (!matrix_core::is_ok(err)) {
+						show_message(err.code == matrix_core::ErrorCode::Overflow ? "common.out_of_memory"_tx : "common.error"_tx);
 						return;
 				}
 
-				// Pack output as [x_p | N] when it fits; otherwise show N only (x_p is 0 when rank==0).
+				const std::uint8_t n = info.var_count;
+
+				// Pack the result as [x_p | v_1 .. v_k] so the grid shows the whole
+				// parametric solution at once; drop x_p when there is no room for it
+				// (that only happens when every variable is free, where x_p is zero).
 				matrix_core::MatrixMutView out{};
-				if (info.rank == n) {
+				if (info.nullity == 0) {
 						out = xp;
-				} else if (n_basis.cols >= 6) {
-						out = n_basis; // fully-free case (e.g. A=0)
+				} else if (info.nullity >= 6) {
+						out = n_basis;
 				} else {
-						const std::uint8_t out_cols = static_cast<std::uint8_t>(n_basis.cols + 1u);
+						const std::uint8_t out_cols = static_cast<std::uint8_t>(info.nullity + 1u);
 						const matrix_core::ErrorCode ec_o = matrix_core::matrix_alloc(persist_, n, out_cols, &out);
 						if (!matrix_core::is_ok(ec_o)) {
 								show_message("common.out_of_memory"_tx);
@@ -794,19 +742,21 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						}
 						for (std::uint8_t r = 0; r < n; r++) {
 								out.at_mut(r, 0) = xp.at(r, 0);
-								for (std::uint8_t c = 0; c < n_basis.cols; c++)
+								for (std::uint8_t c = 0; c < info.nullity; c++)
 										out.at_mut(r, static_cast<std::uint8_t>(c + 1u)) = n_basis.at(r, c);
 						}
 				}
 
 				tx.commit();
 				expl_ = std::move(expl);
+				persist_tail_mark_ = persist_.mark();
 				REQUIRE(pop(), "pop failed (solve rref)");
 				Page p = Page::make_result_matrix(s.op, a_slot, b_slot, expl_.available(), out.rows, out.cols, out.stride, out.data);
 				p.u.result.i = info.rank;
-				p.u.result.j = nullity;
-				p.u.result.num = piv_mask;
-				p.u.result.den = 1;
+				p.u.result.j = info.nullity;
+				p.u.result.num = static_cast<std::int64_t>(info.pivot_mask);
+				// `den` carries consistency for the result page: 0 means no solution
+				p.u.result.den = info.consistent ? 1 : 0;
 				REQUIRE(push(p), "push solve rref result failed");
 				return;
 		}

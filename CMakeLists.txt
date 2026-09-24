@@ -48,6 +48,7 @@ set(MATRIX_CORE_SOURCES
   ${MATRIX_CORE_DIR}/src/ops_inverse_ondemand.cpp
   ${MATRIX_CORE_DIR}/src/ops_optional_stubs.cpp
   ${MATRIX_CORE_DIR}/src/ops_rref_ondemand.cpp
+  ${MATRIX_CORE_DIR}/src/ops_solve_parametric_ondemand.cpp
   ${MATRIX_CORE_DIR}/src/ops_vector_ondemand.cpp
   ${MATRIX_CORE_DIR}/src/rational.cpp
   ${MATRIX_CORE_DIR}/src/row_reduction.cpp
@@ -355,6 +356,12 @@ if(MATRIX_ENABLE_TESTS)
     ${MATRIX_CORE_DIR}/tests/test_arena_guards.cpp
   )
   matrix_core_apply(test_arena_guards)
+  add_executable(test_solve_parametric
+    ${MATRIX_CORE_SOURCES}
+    ${MATRIX_CORE_HEADERS}
+    ${MATRIX_CORE_DIR}/tests/test_solve_parametric.cpp
+  )
+  matrix_core_apply(test_solve_parametric)
 
   add_test(NAME rational COMMAND test_rational)
   add_test(NAME matrix_ops COMMAND test_matrix_ops)
@@ -364,6 +371,7 @@ if(MATRIX_ENABLE_TESTS)
   add_test(NAME vectors COMMAND test_vectors)
   add_test(NAME spaces COMMAND test_spaces)
   add_test(NAME arena_guards COMMAND test_arena_guards)
+  add_test(NAME solve_parametric COMMAND test_solve_parametric)
 
   if(MATRIX_FEATURE_MINOR_MATRIX)
     add_test(NAME minor_matrix COMMAND test_minor_matrix)
