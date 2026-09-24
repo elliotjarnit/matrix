@@ -311,6 +311,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 				}
 #endif
 
+#if MATRIX_SHELL_ENABLE_TRANSPOSE && MATRIX_CORE_ENABLE_TRANSPOSE
 				if (s.op == OperationId::Transpose) {
 						matrix_core::ArenaScope tx(persist_);
 						matrix_core::MatrixMutView out{};
@@ -347,6 +348,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						        "push transpose result failed");
 						return;
 				}
+#endif
 
 				if (s.op == OperationId::Det) {
 						matrix_core::ArenaScope tx(persist_);
@@ -386,6 +388,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						return;
 				}
 
+#if MATRIX_SHELL_ENABLE_INVERSE && MATRIX_CORE_ENABLE_INVERSE
 				if (s.op == OperationId::Inverse) {
 						if (a.rows != a.cols) {
 								fmt_buf_[0] = '\0';
@@ -439,6 +442,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						        "push inverse result failed");
 						return;
 				}
+#endif
 
 				if (s.op == OperationId::Invertible) {
 						run_invertible(sel);
@@ -537,6 +541,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						return;
 				}
 
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
 				if (s.op == OperationId::ColSpaceBasis || s.op == OperationId::RowSpaceBasis || s.op == OperationId::NullSpaceBasis ||
 				        s.op == OperationId::LeftNullSpaceBasis) {
 						matrix_core::ArenaScope tx(persist_);
@@ -623,6 +628,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						REQUIRE(push(p), "push spaces result failed");
 						return;
 				}
+#endif
 
 				if (s.op == OperationId::Ref || s.op == OperationId::Rref) {
 						matrix_core::ArenaScope tx(persist_);
@@ -687,6 +693,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 		dbg_print_matrix("A", a);
 		dbg_print_matrix("B", b);
 
+#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
 		if (s.op == OperationId::Dot) {
 				matrix_core::ArenaScope tx(persist_);
 				matrix_core::ArenaScratchScope scratch_tx(scratch_);
@@ -738,7 +745,9 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 				        "push dot result failed");
 				return;
 		}
+#endif
 
+#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
 		if (s.op == OperationId::Cross) {
 				matrix_core::ArenaScope tx(persist_);
 				matrix_core::MatrixMutView out{};
@@ -786,6 +795,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 				        "push cross result failed");
 				return;
 		}
+#endif
 
 #if !MATRIX_SHELL_ENABLE_PROJECTION
 		if (s.op == OperationId::Projection) {

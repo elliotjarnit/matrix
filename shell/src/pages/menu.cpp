@@ -57,18 +57,26 @@ constexpr MenuEntry kMatricesMenuEntries[] = {
 constexpr MenuEntry kOperationsMenuEntries[] = {
         {"menu.entry.add_sub"_tid, MenuEntryKind::Submenu, MenuId::AddSub, OperationId::Add},
         {"menu.entry.multiply"_tid, MenuEntryKind::Submenu, MenuId::Multiply, OperationId::Add},
+#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Dot},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Cross},
+#endif
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Det},
         {"menu.entry.ref_rref"_tid, MenuEntryKind::Submenu, MenuId::RefRref, OperationId::Add},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::SolveRref},
         {"menu.entry.span_indep"_tid, MenuEntryKind::Submenu, MenuId::Span, OperationId::Add},
+#if MATRIX_SHELL_ENABLE_TRANSPOSE && MATRIX_CORE_ENABLE_TRANSPOSE
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Transpose},
+#endif
+#if MATRIX_SHELL_ENABLE_INVERSE && MATRIX_CORE_ENABLE_INVERSE
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Inverse},
+#endif
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Invertible},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::LuFactor},
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::LuSolve},
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
         {"menu.entry.spaces"_tid, MenuEntryKind::Submenu, MenuId::Spaces, OperationId::Add},
+#endif
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Projection},
 };
 
@@ -91,16 +99,20 @@ constexpr OpMenuEntry kSpanMenuOps[] = {
         {OperationId::SolveRref, "menu.entry.in_span_solve"_tid},
         {OperationId::SpanTest, TextId::None},
         {OperationId::IndepTest, TextId::None},
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
         {OperationId::ColSpaceBasis, "menu.entry.basis_from_set"_tid},
+#endif
         {OperationId::Transformation, "menu.entry.onto_one_to_one"_tid},
 };
 
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
 constexpr OpMenuEntry kSpacesMenuOps[] = {
         {OperationId::ColSpaceBasis, TextId::None},
         {OperationId::RowSpaceBasis, TextId::None},
         {OperationId::NullSpaceBasis, TextId::None},
         {OperationId::LeftNullSpaceBasis, TextId::None},
 };
+#endif
 
 const char* menu_entry_label(const MenuEntry& e) noexcept {
 		if (e.label != TextId::None)
@@ -173,11 +185,13 @@ void App::render_menu(const MenuState& s) noexcept {
 				base_ops = kSpanMenuOps;
 				base_ops_count = array_count(kSpanMenuOps);
 				render_footer_hint("footer.select_back"_tx);
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
 		} else if (s.id == MenuId::Spaces) {
 				title = "menu.spaces.title"_tx;
 				base_ops = kSpacesMenuOps;
 				base_ops_count = array_count(kSpacesMenuOps);
 				render_footer_hint("footer.select_back"_tx);
+#endif
 		} else if (s.id == MenuId::AddSub) {
 				title = "menu.add_sub.title"_tx;
 				base_ops = kAddSubMenuOps;
@@ -281,9 +295,11 @@ void App::update_menu(MenuState& s) noexcept {
 		} else if (s.id == MenuId::Span) {
 				base_ops = kSpanMenuOps;
 				base_ops_count = array_count(kSpanMenuOps);
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
 		} else if (s.id == MenuId::Spaces) {
 				base_ops = kSpacesMenuOps;
 				base_ops_count = array_count(kSpacesMenuOps);
+#endif
 		} else if (s.id == MenuId::AddSub) {
 				base_ops = kAddSubMenuOps;
 				base_ops_count = array_count(kAddSubMenuOps);

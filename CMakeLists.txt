@@ -170,11 +170,11 @@ if(MATRIX_BUILD_CE)
     endfunction()
 
     if(MATRIX_BUILD_CE_SHELL_EN)
-      matrix_add_ce_shell(matrix_shell MATRIX "Matrix program (English)" 0)
+      matrix_add_ce_shell(matrix_shell MATLITE "MatrixLite (English)" 0)
     endif()
 
     if(MATRIX_BUILD_CE_SHELL_FR)
-      matrix_add_ce_shell(matrix_shell_fr MATRIXFR "Programme matrice (Francaise)" 1)
+      matrix_add_ce_shell(matrix_shell_fr MATLITFR "MatrixLite (Francaise)" 1)
     endif()
 
     if(NOT MATRIX_BUILD_CE_SHELL_EN AND NOT MATRIX_BUILD_CE_SHELL_FR)

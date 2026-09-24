@@ -87,9 +87,20 @@ Optional operations can be toggled at configure time to reduce binary size:
 | `MATRIX_FEATURE_COFACTOR` | ON | OFF | Single-element cofactor / minor |
 | `MATRIX_FEATURE_CRAMER` | ON | OFF | Cramer's rule solver |
 | `MATRIX_FEATURE_LU` | ON | ON | LU factorization and LU solve |
-| `MATRIX_FEATURE_COLROW` | ON | OFF | Column row (outer product) expansion of A*B |
+| `MATRIX_FEATURE_COLROW` | ON | ON | Column row (outer product) expansion of A*B |
+| `MATRIX_FEATURE_VECTOR_OPS` | ON | OFF | Dot and cross product |
+| `MATRIX_FEATURE_INVERSE` | ON | OFF | Matrix inverse (the invertibility verdict is separate) |
+| `MATRIX_FEATURE_TRANSPOSE` | ON | OFF | Transpose |
+| `MATRIX_FEATURE_SPACE_BASES` | ON | OFF | Column / row / null / left-null space bases |
 
-The CE presets pin `MATRIX_FEATURE_CRAMER=OFF`. A TI variable holds at most
+The CE presets are a deliberately reduced build. Everything not needed for the
+Math 210 review sheets is off, which is what keeps the program inside the
+calculator's RAM: dot, cross, transpose, inverse and the four space bases are
+dropped, and only the shell dispatch needs guarding because LTO then strips the
+core operations automatically. The CE program is named `MATLITE` rather than
+`MATRIX` so it does not collide with a full build already on the calculator.
+
+The CE presets also pin `MATRIX_FEATURE_CRAMER=OFF`. A TI variable holds at most
 65535 bytes, and with Cramer's rule compiled in the program no longer fits:
 `convbin` splits it into a small `MATRIX.8xp` launcher plus `MATRIX0.8xv` /
 `MATRIX1.8xv` appvars, which the release workflow does not publish. Turning it

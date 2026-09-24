@@ -67,8 +67,18 @@ constexpr OpMeta kOpMeta[] = {
         /* Add */ {"op.add"_tid, true, true},
         /* Sub */ {"op.sub"_tid, true, true},
         /* Mul */ {"op.mul"_tid, true, true},
-        /* Dot */ {"op.dot"_tid, true, true},
-        /* Cross */ {"op.cross"_tid, true, true},
+/* Dot */
+#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
+        {"op.dot"_tid, true, true},
+#else
+        {TextId::None, true, false},
+#endif
+/* Cross */
+#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
+        {"op.cross"_tid, true, true},
+#else
+        {TextId::None, true, false},
+#endif
 /* Projection */
 #if MATRIX_SHELL_ENABLE_PROJECTION && MATRIX_CORE_ENABLE_PROJECTION
         {"op.projection"_tid, true, true},
@@ -85,12 +95,42 @@ constexpr OpMeta kOpMeta[] = {
         /* SolveRref */ {"op.solve_rref"_tid, true, true},
         /* SpanTest */ {"op.span_test"_tid, false, true},
         /* IndepTest */ {"op.indep_test"_tid, false, true},
-        /* Transpose */ {"op.transpose"_tid, false, true},
-        /* Inverse */ {"op.inverse"_tid, false, true},
-        /* ColSpaceBasis */ {"op.col_basis"_tid, false, true},
-        /* RowSpaceBasis */ {"op.row_basis"_tid, false, true},
-        /* NullSpaceBasis */ {"op.null_basis"_tid, false, true},
-        /* LeftNullSpaceBasis */ {"op.left_null_basis"_tid, false, true},
+/* Transpose */
+#if MATRIX_SHELL_ENABLE_TRANSPOSE && MATRIX_CORE_ENABLE_TRANSPOSE
+        {"op.transpose"_tid, false, true},
+#else
+        {TextId::None, false, false},
+#endif
+/* Inverse */
+#if MATRIX_SHELL_ENABLE_INVERSE && MATRIX_CORE_ENABLE_INVERSE
+        {"op.inverse"_tid, false, true},
+#else
+        {TextId::None, false, false},
+#endif
+/* ColSpaceBasis */
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
+        {"op.col_basis"_tid, false, true},
+#else
+        {TextId::None, false, false},
+#endif
+/* RowSpaceBasis */
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
+        {"op.row_basis"_tid, false, true},
+#else
+        {TextId::None, false, false},
+#endif
+/* NullSpaceBasis */
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
+        {"op.null_basis"_tid, false, true},
+#else
+        {TextId::None, false, false},
+#endif
+/* LeftNullSpaceBasis */
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
+        {"op.left_null_basis"_tid, false, true},
+#else
+        {TextId::None, false, false},
+#endif
 /* MinorMatrix */
 #if MATRIX_SHELL_ENABLE_MINOR_MATRIX && MATRIX_CORE_ENABLE_MINOR_MATRIX
         {"op.minor_matrix"_tid, false, true},

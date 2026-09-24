@@ -90,11 +90,11 @@ A zero pivot with a nonzero entry below it cannot be eliminated without swapping
 
 ### Installation
 
-1. Download the latest **MATRIX.8xp** from the [Releases](https://github.com/Sightem/matrix/releases) page
+1. Download the latest **MATLITE.8xp** from the [Releases](https://github.com/Sightem/matrix/releases) page
 2. Connect your calculator to your computer via USB
 3. Get clibs from https://tiny.cc/clibs
 4. If you are on an OS above version 5.4, you need [arTIfiCE](https://yvantt.github.io/arTIfiCE/) to launch the program (this is likely the case)
-3. Open TI Connect CE or webtilp and send `MATRIX.8xp` to your calculator, the fonts, and clibs and arTIfiCE (make sure to choose ARCHIVE when prompted)
+3. Open TI Connect CE or webtilp and send `MATLITE.8xp` to your calculator, the fonts, and clibs and arTIfiCE (make sure to choose ARCHIVE when prompted)
 
 ### Quick Start
 

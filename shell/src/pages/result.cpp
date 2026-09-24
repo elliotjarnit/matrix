@@ -269,6 +269,7 @@ void App::render_result(const ResultState& s) noexcept {
 						return;
 				}
 
+#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
 				if (s.op == OperationId::Dot) {
 						gfx_SetTextXY(l.margin_x, l.header_h + 30);
 						gfx_PrintString("dot(");
@@ -289,6 +290,7 @@ void App::render_result(const ResultState& s) noexcept {
 						gfx_PrintString(fmt_buf_);
 						return;
 				}
+#endif
 
 #if MATRIX_SHELL_ENABLE_COFACTOR
 				if (s.op == OperationId::CofactorElement) {
@@ -347,8 +349,14 @@ void App::render_result(const ResultState& s) noexcept {
 		}
 
 		int grid_top = l.header_h + 8;
-		if (s.op == OperationId::SolveRref || s.op == OperationId::LuSolve || s.op == OperationId::ColSpaceBasis ||
-		        s.op == OperationId::RowSpaceBasis || s.op == OperationId::NullSpaceBasis || s.op == OperationId::LeftNullSpaceBasis) {
+		const bool is_space_basis =
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
+		        s.op == OperationId::ColSpaceBasis || s.op == OperationId::RowSpaceBasis || s.op == OperationId::NullSpaceBasis ||
+		        s.op == OperationId::LeftNullSpaceBasis;
+#else
+		        false;
+#endif
+		if (s.op == OperationId::SolveRref || s.op == OperationId::LuSolve || is_space_basis) {
 				gfx_SetTextXY(l.margin_x, l.header_h + 4);
 				gfx_PrintString("result.rank_eq"_tx);
 				fmt_buf_[0] = '\0';
@@ -367,9 +375,12 @@ void App::render_result(const ResultState& s) noexcept {
 				gfx_PrintString(fmt_buf_);
 
 				gfx_SetTextXY(l.margin_x, l.header_h + 16);
+#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
 				if (s.op == OperationId::RowSpaceBasis) {
 						gfx_PrintString("result.rows_basis"_tx);
-				} else if (s.op == OperationId::SolveRref) {
+				} else
+#endif
+				        if (s.op == OperationId::SolveRref) {
 						// the grid holds [x_p | v_1 .. v_k]; x_p is dropped only when every
 						// variable is free, where it is the zero vector anyway
 						const bool has_xp = (s.cols == static_cast<std::uint8_t>(s.j + 1u));

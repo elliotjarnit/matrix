@@ -29,3 +29,15 @@ constexpr std::size_t kMaxEntries = static_cast<std::size_t>(kMaxRows) * static_
 #ifndef MATRIX_CORE_ENABLE_LU
 #define MATRIX_CORE_ENABLE_LU 1
 #endif
+#ifndef MATRIX_CORE_ENABLE_VECTOR_OPS
+#define MATRIX_CORE_ENABLE_VECTOR_OPS 1
+#endif
+#ifndef MATRIX_CORE_ENABLE_INVERSE
+#define MATRIX_CORE_ENABLE_INVERSE 1
+#endif
+#ifndef MATRIX_CORE_ENABLE_TRANSPOSE
+#define MATRIX_CORE_ENABLE_TRANSPOSE 1
+#endif
+#ifndef MATRIX_CORE_ENABLE_SPACE_BASES
+#define MATRIX_CORE_ENABLE_SPACE_BASES 1
+#endif
