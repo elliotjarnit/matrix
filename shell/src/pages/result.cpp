@@ -81,6 +81,60 @@ void render_param_equation(std::uint8_t param_count, bool has_particular, char* 
 				w.append_u64(static_cast<std::uint64_t>(k) + 1u);
 		}
 }
+
+// "v3 = 3v1 + v2": the dependent vector `dep_col` written over the pivot
+// vectors, with the coefficients read out of the RREF. Overflow truncates: the
+// steps page carries the full relation.
+void render_relation(const matrix_core::Rational* rref,
+        std::uint8_t stride,
+        std::uint8_t rows,
+        std::uint32_t pivot_mask,
+        std::uint8_t dep_col,
+        char* buf,
+        std::size_t cap) noexcept {
+		if (!buf || cap == 0 || !rref)
+				return;
+		buf[0] = '\0';
+		matrix_core::Writer w{buf, cap, 0};
+		(void)w.put('v');
+		(void)w.append_index1(dep_col);
+		(void)w.append(" = ");
+
+		bool wrote = false;
+		std::uint8_t row = 0;
+		for (std::uint8_t pc = 0; pc < 7 && row < rows; pc++) {
+				if ((pivot_mask & (1u << pc)) == 0)
+						continue;
+
+				// in an RREF the k-th pivot column carries its 1 in the k-th row
+				const matrix_core::Rational& c = rref[static_cast<std::size_t>(row) * stride + dep_col];
+				row++;
+				if (c.is_zero())
+						continue;
+
+				const bool neg = c.num() < 0;
+				if (neg)
+						(void)w.append(wrote ? " - " : "-");
+				else if (wrote)
+						(void)w.append(" + ");
+
+				// magnitude without negating, which would be UB at INT64_MIN
+				const std::uint64_t mag = neg ? (static_cast<std::uint64_t>(-(c.num() + 1)) + 1u) : static_cast<std::uint64_t>(c.num());
+				if (!(mag == 1u && c.den() == 1)) {
+						(void)w.append_u64(mag);
+						if (c.den() != 1) {
+								(void)w.put('/');
+								(void)w.append_i64(c.den());
+						}
+				}
+				(void)w.put('v');
+				(void)w.append_index1(pc);
+				wrote = true;
+		}
+
+		if (!wrote)
+				(void)w.put('0');
+}
 } // namespace
 
 void App::render_result(const ResultState& s) noexcept {
@@ -125,6 +179,16 @@ void App::render_result(const ResultState& s) noexcept {
 						gfx_PrintString("result.piv_eq"_tx);
 						render_pivot_cols(static_cast<std::uint32_t>(s.den), fmt_buf_, sizeof(fmt_buf_));
 						gfx_PrintString(fmt_buf_);
+
+						// for a dependent set, show the first vector as a combination of the
+						// pivot vectors: the answer the review exercises ask to be written out
+						if (s.op == OperationId::IndepTest && s.num == 0 && s.j != 0xFFu && s.data) {
+								gfx_SetTextXY(l.margin_x, y0 + 42);
+								fmt_buf_[0] = '\0';
+								render_relation(
+								        s.data, s.stride, s.rows, static_cast<std::uint32_t>(s.den), s.j, fmt_buf_, sizeof(fmt_buf_));
+								gfx_PrintString(fmt_buf_);
+						}
 						return;
 				}
 

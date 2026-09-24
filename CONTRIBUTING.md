@@ -113,6 +113,7 @@ ctest --preset native
 | `test_minor_matrix` | Full matrix of minors |
 | `test_spaces` | Column/row/null space basis extraction |
 | `test_solve_parametric` | Complete solution of Ax=b in parametric vector form, with step rendering |
+| `test_dependency` | Linear (in)dependence and the dependency relation of each dependent vector |
 | `test_arena_guards` | Arena allocator boundary checks |
 
 ### CE Target Tests

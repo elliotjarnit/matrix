@@ -52,6 +52,14 @@ MATRIX_SHELL_TEXT_ENTRY(SolveComplete, "solve.complete", "Complete solution", "S
 MATRIX_SHELL_TEXT_ENTRY(SolveInconsistent, "solve.inconsistent", "no solution", "pas de solution")
 MATRIX_SHELL_TEXT_ENTRY(SolveUnique, "solve.unique", "Unique solution", "Solution unique")
 
+MATRIX_SHELL_TEXT_ENTRY(DepVectors, "dep.vectors", "Columns are the vectors", "Les colonnes sont les vecteurs")
+MATRIX_SHELL_TEXT_ENTRY(DepRref, "dep.rref", "RREF", "RREF")
+MATRIX_SHELL_TEXT_ENTRY(DepIndependent, "dep.independent", "linearly independent", "lineairement independants")
+MATRIX_SHELL_TEXT_ENTRY(DepDependent, "dep.dependent", "linearly dependent", "lineairement dependants")
+MATRIX_SHELL_TEXT_ENTRY(DepVectorsWord, "dep.vectors_word", "vectors", "vecteurs")
+MATRIX_SHELL_TEXT_ENTRY(DepRankWord, "dep.rank_word", "rank", "rang")
+MATRIX_SHELL_TEXT_ENTRY(DepRelation, "dep.relation", "Read off the RREF columns", "Lire dans les colonnes de la RREF")
+
 MATRIX_SHELL_TEXT_ENTRY(MenuMainTitle, "menu.main.title", "Main", "Principal")
 MATRIX_SHELL_TEXT_ENTRY(MenuMatricesTitle, "menu.matrices.title", "Matrices", "Matrices")
 MATRIX_SHELL_TEXT_ENTRY(MenuOperationsTitle, "menu.operations.title", "Operations", "Operations")

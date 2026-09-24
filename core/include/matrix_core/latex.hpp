@@ -36,6 +36,14 @@ ErrorCode write_augmented_matrix_display(In MatrixView left, In MatrixView right
 // composable variants: append to an existing Writer instead of resetting a buffer
 ErrorCode append_matrix(In MatrixView m, In MatrixBrackets brackets, InOut Writer& w) noexcept;
 ErrorCode append_augmented_matrix(In MatrixView left, In MatrixView right, InOut Writer& w) noexcept;
+
+// appends one signed term of a linear combination: "3v_{1}", " + v_{2}",
+// " - \\frac{1}{2}x_{3}". `index0` is 0 based and printed as index0 + 1, a
+// coefficient of 1 or -1 is elided, and `leading` suppresses the " + " that
+// would otherwise separate this term from the previous one. `c` must not be
+// zero; callers skip zero coefficients themselves.
+ErrorCode append_signed_term(
+        In const Rational& c, In const char* symbol, In std::uint8_t index0, In bool leading, InOut Writer& w) noexcept;
 // writes a parametric solution as a sum of column vectors:
 //
 //   lhs = particular + t_{1} basis_1 + ... + t_{param_count} basis_k

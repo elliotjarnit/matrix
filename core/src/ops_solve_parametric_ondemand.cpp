@@ -63,35 +63,6 @@ ErrorCode write_param(std::uint8_t k, Writer& w) noexcept {
 		return w.append("}");
 }
 
-constexpr bool is_one(const Rational& r) noexcept {
-		return r.num() == 1 && r.den() == 1;
-}
-
-// writes a signed term "c x_{j}", prefixed with " + " or " - " unless it leads
-// the expression. `c` must be non zero; a coefficient of 1 is elided.
-ErrorCode write_term(const Rational& c, std::uint8_t var_col, bool leading, Writer& w) noexcept {
-		Rational mag = c;
-		if (c.num() < 0) {
-				ErrorCode ec = rational_neg(c, &mag);
-				if (!is_ok(ec))
-						return ec;
-				ec = w.append(leading ? "-" : " - ");
-				if (!is_ok(ec))
-						return ec;
-		} else if (!leading) {
-				ErrorCode ec = w.append(" + ");
-				if (!is_ok(ec))
-						return ec;
-		}
-
-		if (!is_one(mag)) {
-				ErrorCode ec = w.append_rational_latex(mag);
-				if (!is_ok(ec))
-						return ec;
-		}
-		return write_var(var_col, w);
-}
-
 // "x_{1} = 10 - 2x_{2}" for one pivot row of the RREF
 ErrorCode write_pivot_equation(MatrixView rref, const ParametricSolution& info, std::uint8_t pivot_index, Writer& w) noexcept {
 		const std::uint8_t pc = info.pivot_cols[pivot_index];
@@ -124,7 +95,7 @@ ErrorCode write_pivot_equation(MatrixView rref, const ParametricSolution& info, 
 				ec = rational_neg(coef, &neg);
 				if (!is_ok(ec))
 						return ec;
-				ec = write_term(neg, fc, !wrote, w);
+				ec = latex::append_signed_term(neg, "x", fc, !wrote, w);
 				if (!is_ok(ec))
 						return ec;
 				wrote = true;

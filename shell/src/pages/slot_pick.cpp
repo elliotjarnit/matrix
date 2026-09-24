@@ -356,7 +356,54 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						return;
 				}
 
-				if (s.op == OperationId::SpanTest || s.op == OperationId::IndepTest) {
+				if (s.op == OperationId::IndepTest) {
+						matrix_core::ArenaScope tx(persist_);
+						matrix_core::ArenaScratchScope scratch_tx(scratch_);
+
+						matrix_core::ExplainOptions opts_steps;
+						opts_steps.enable = true;
+						opts_steps.persist = &persist_;
+						matrix_core::Explanation expl;
+
+						matrix_core::DependencyLabels labels{};
+						labels.vectors = "dep.vectors"_tx;
+						labels.rref = "dep.rref"_tx;
+						labels.independent = "dep.independent"_tx;
+						labels.dependent = "dep.dependent"_tx;
+						labels.vectors_word = "dep.vectors_word"_tx;
+						labels.rank_word = "dep.rank_word"_tx;
+						labels.relation = "dep.relation"_tx;
+
+						matrix_core::MatrixMutView rref{};
+						matrix_core::DependencyInfo info{};
+						const matrix_core::Error err = matrix_core::op_dependency(a, persist_, &rref, &info, &expl, opts_steps, labels);
+						if (!matrix_core::is_ok(err)) {
+								show_message(err.code == matrix_core::ErrorCode::Overflow ? "common.out_of_memory"_tx : "common.error"_tx);
+								return;
+						}
+
+						tx.commit();
+						expl_ = std::move(expl);
+						persist_tail_mark_ = persist_.mark();
+						REQUIRE(pop(), "pop failed (indep)");
+
+						Page p = Page::make_result_scalar(s.op, sel, 0, expl_.available(), info.independent ? 1 : 0, 1);
+						p.u.result.rows = a.rows;
+						p.u.result.cols = a.cols;
+						p.u.result.i = info.rank;
+						// `j` is the first dependent column, 0xFF when the vectors are independent
+						p.u.result.j = info.independent ? 0xFFu : info.dependent_cols[0];
+						// `num` is the boolean (YES/NO) and `den` stores the pivot mask
+						p.u.result.num = info.independent ? 1 : 0;
+						p.u.result.den = static_cast<std::int64_t>(info.pivot_mask);
+						// the RREF backs the dependency relation drawn on the result page
+						p.u.result.stride = rref.stride;
+						p.u.result.data = rref.data;
+						REQUIRE(push(p), "push indep result failed");
+						return;
+				}
+
+				if (s.op == OperationId::SpanTest) {
 						matrix_core::ArenaScope tx(persist_);
 						matrix_core::ArenaScratchScope scratch_tx(scratch_);
 
@@ -386,26 +433,21 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 						}
 						const std::uint32_t piv_mask = info.pivot_mask;
 
-						bool ok = false;
-						if (s.op == OperationId::SpanTest) {
-								ok = (info.rank == a.rows);
-						} else {
-								ok = (info.rank == a.cols);
-						}
+						const bool ok = (info.rank == a.rows);
 
 						tx.commit();
 						expl_ = std::move(expl);
-						REQUIRE(pop(), "pop failed (span/indep)");
+						REQUIRE(pop(), "pop failed (span)");
 
 						Page p = Page::make_result_scalar(s.op, sel, 0, expl_.available(), ok ? 1 : 0, 1);
 						p.u.result.rows = a.rows;
 						p.u.result.cols = a.cols;
 						p.u.result.i = info.rank; // rank
 						p.u.result.j = 0;
-						// For span/independence, `num` is the boolean (YES/NO) and `den` stores the pivot mask.
+						// For the span test, `num` is the boolean (YES/NO) and `den` stores the pivot mask.
 						p.u.result.num = ok ? 1 : 0;
 						p.u.result.den = static_cast<std::int64_t>(piv_mask);
-						REQUIRE(push(p), "push span/indep result failed");
+						REQUIRE(push(p), "push span result failed");
 						return;
 				}
 

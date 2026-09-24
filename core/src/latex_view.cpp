@@ -288,6 +288,45 @@ ErrorCode append_augmented_matrix(MatrixView left, MatrixView right, Writer& w) 
 		return write_augmented_matrix_inner(left, right, w);
 }
 
+ErrorCode append_signed_term(const Rational& c, const char* symbol, std::uint8_t index0, bool leading, Writer& w) noexcept {
+		if (!symbol)
+				return ErrorCode::Internal;
+		if (c.is_zero())
+				return ErrorCode::Internal;
+
+		Rational mag = c;
+		if (c.num() < 0) {
+				ErrorCode ec = rational_neg(c, &mag);
+				if (!is_ok(ec))
+						return ec;
+				ec = w.append(leading ? "-" : " - ");
+				if (!is_ok(ec))
+						return ec;
+		} else if (!leading) {
+				ErrorCode ec = w.append(" + ");
+				if (!is_ok(ec))
+						return ec;
+		}
+
+		// a unit coefficient is written as just the symbol
+		if (!(mag.num() == 1 && mag.den() == 1)) {
+				ErrorCode ec = write_rational_inner(mag, w);
+				if (!is_ok(ec))
+						return ec;
+		}
+
+		ErrorCode ec = w.append(symbol);
+		if (!is_ok(ec))
+				return ec;
+		ec = w.append("_{");
+		if (!is_ok(ec))
+				return ec;
+		ec = w.append_index1(index0);
+		if (!is_ok(ec))
+				return ec;
+		return w.append("}");
+}
+
 ErrorCode write_augmented_matrix_display(MatrixView left, MatrixView right, Buffer out) noexcept {
 		Writer w{out.data, out.cap, 0};
 		if (w.data && w.cap)
