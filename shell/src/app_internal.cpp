@@ -119,7 +119,12 @@ constexpr OpMeta kOpMeta[] = {
 #endif
         /* Invertible */ {"op.invertible"_tid, false, true},
         /* Transformation */ {"op.transformation"_tid, false, true},
-        /* MulColRow */ {"op.mul_colrow"_tid, true, true},
+/* MulColRow */
+#if MATRIX_SHELL_ENABLE_COLROW && MATRIX_CORE_ENABLE_COLROW
+        {"op.mul_colrow"_tid, true, true},
+#else
+        {TextId::None, true, false},
+#endif
 };
 static_assert(sizeof(kOpMeta) / sizeof(kOpMeta[0]) == static_cast<std::size_t>(OperationId::MulColRow) + 1u, "Update kOpMeta");
 
@@ -162,6 +167,7 @@ matrix_core::DependencyLabels dependency_labels() noexcept {
 		return labels;
 }
 
+#if MATRIX_SHELL_ENABLE_COLROW && MATRIX_CORE_ENABLE_COLROW
 matrix_core::ColRowLabels colrow_labels() noexcept {
 		matrix_core::ColRowLabels labels{};
 		labels.intro = "colrow.intro"_tx;
@@ -169,6 +175,7 @@ matrix_core::ColRowLabels colrow_labels() noexcept {
 		labels.sum = "colrow.sum"_tx;
 		return labels;
 }
+#endif
 
 matrix_core::LuLabels lu_labels() noexcept {
 		matrix_core::LuLabels labels{};

@@ -48,7 +48,6 @@ set(MATRIX_CORE_SOURCES
   ${MATRIX_CORE_DIR}/src/ops_det_ondemand.cpp
   ${MATRIX_CORE_DIR}/src/ops_inverse_ondemand.cpp
   ${MATRIX_CORE_DIR}/src/ops_optional_stubs.cpp
-  ${MATRIX_CORE_DIR}/src/ops_mul_colrow_ondemand.cpp
   ${MATRIX_CORE_DIR}/src/ops_rref_ondemand.cpp
   ${MATRIX_CORE_DIR}/src/ops_dependency_ondemand.cpp
   ${MATRIX_CORE_DIR}/src/ops_solve_parametric_ondemand.cpp
@@ -76,6 +75,12 @@ endif()
 if(MATRIX_FEATURE_MINOR_MATRIX)
   list(APPEND MATRIX_CORE_SOURCES
     ${MATRIX_CORE_DIR}/src/ops_minor_matrix.cpp
+  )
+endif()
+
+if(MATRIX_FEATURE_COLROW)
+  list(APPEND MATRIX_CORE_SOURCES
+    ${MATRIX_CORE_DIR}/src/ops_mul_colrow_ondemand.cpp
   )
 endif()
 
@@ -374,12 +379,14 @@ if(MATRIX_ENABLE_TESTS)
   )
   matrix_core_apply(test_dependency)
 
-  add_executable(test_mul_colrow
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_mul_colrow.cpp
-  )
-  matrix_core_apply(test_mul_colrow)
+  if(MATRIX_FEATURE_COLROW)
+    add_executable(test_mul_colrow
+      ${MATRIX_CORE_SOURCES}
+      ${MATRIX_CORE_HEADERS}
+      ${MATRIX_CORE_DIR}/tests/test_mul_colrow.cpp
+    )
+    matrix_core_apply(test_mul_colrow)
+  endif()
 
   add_executable(test_arena_budget
     ${MATRIX_CORE_SOURCES}
@@ -398,9 +405,11 @@ if(MATRIX_ENABLE_TESTS)
   add_test(NAME arena_guards COMMAND test_arena_guards)
   add_test(NAME solve_parametric COMMAND test_solve_parametric)
   add_test(NAME dependency COMMAND test_dependency)
-  add_test(NAME mul_colrow COMMAND test_mul_colrow)
   add_test(NAME arena_budget COMMAND test_arena_budget)
 
+  if(MATRIX_FEATURE_COLROW)
+    add_test(NAME mul_colrow COMMAND test_mul_colrow)
+  endif()
   if(MATRIX_FEATURE_MINOR_MATRIX)
     add_test(NAME minor_matrix COMMAND test_minor_matrix)
   endif()

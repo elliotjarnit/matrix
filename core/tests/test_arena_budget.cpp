@@ -89,6 +89,7 @@ int main() {
 						assert(e.render_step(i, bufs) != ErrorCode::Overflow);
 		}
 
+#if MATRIX_CORE_ENABLE_COLROW
 		// column row expansion: the sum step allocates one term per column
 		{
 				reset();
@@ -101,6 +102,7 @@ int main() {
 				for (std::size_t i = 0; i < e.step_count(); i++)
 						assert(e.render_step(i, bufs) != ErrorCode::Overflow);
 		}
+#endif
 
 		// inverse via [A | I]
 		{

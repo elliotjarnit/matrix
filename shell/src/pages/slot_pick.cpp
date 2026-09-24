@@ -17,7 +17,9 @@
 
 namespace matrix_shell {
 namespace {
+#if MATRIX_SHELL_ENABLE_COLROW && MATRIX_CORE_ENABLE_COLROW
 using detail::colrow_labels;
+#endif
 using detail::dbg_print_matrix;
 using detail::dbg_print_rational;
 using detail::dependency_labels;
@@ -1080,8 +1082,10 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 				err = matrix_core::op_add(a, b, out, &expl, opts_steps);
 		else if (s.op == OperationId::Sub)
 				err = matrix_core::op_sub(a, b, out, &expl, opts_steps);
+#if MATRIX_SHELL_ENABLE_COLROW && MATRIX_CORE_ENABLE_COLROW
 		else if (s.op == OperationId::MulColRow)
 				err = matrix_core::op_mul_colrow(a, b, out, &expl, opts_steps, colrow_labels());
+#endif
 		else
 				err = matrix_core::op_mul(a, b, out, &expl, opts_steps);
 

@@ -87,6 +87,7 @@ Optional operations can be toggled at configure time to reduce binary size:
 | `MATRIX_FEATURE_COFACTOR` | ON | OFF | Single-element cofactor / minor |
 | `MATRIX_FEATURE_CRAMER` | ON | OFF | Cramer's rule solver |
 | `MATRIX_FEATURE_LU` | ON | ON | LU factorization and LU solve |
+| `MATRIX_FEATURE_COLROW` | ON | OFF | Column row (outer product) expansion of A*B |
 
 The CE presets pin `MATRIX_FEATURE_CRAMER=OFF`. A TI variable holds at most
 65535 bytes, and with Cramer's rule compiled in the program no longer fits:

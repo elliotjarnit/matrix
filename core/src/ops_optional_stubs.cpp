@@ -116,3 +116,24 @@ Error op_lu_solve(MatrixView a,
 
 } // namespace matrix_core
 #endif // !MATRIX_CORE_ENABLE_LU
+
+#if !MATRIX_CORE_ENABLE_COLROW
+namespace matrix_core {
+
+Error op_mul_colrow(MatrixView a,
+        MatrixView b,
+        MatrixMutView out,
+        Explanation* expl,
+        const ExplainOptions& opts,
+        const ColRowLabels& labels) noexcept {
+		(void)a;
+		(void)b;
+		(void)out;
+		(void)expl;
+		(void)opts;
+		(void)labels;
+		return err_feature_disabled();
+}
+
+} // namespace matrix_core
+#endif // !MATRIX_CORE_ENABLE_COLROW

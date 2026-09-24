@@ -15,6 +15,8 @@ option(MATRIX_FEATURE_CRAMER "Enable Cramer's rule operation (and det-replace-co
 # operations the program is used for day to day. Turn it off to save space.
 option(MATRIX_FEATURE_LU "Enable LU factorization and LU solve operations" ON)
 
+option(MATRIX_FEATURE_COLROW "Enable the column row (outer product) expansion of A*B" ON)
+
 option(MATRIX_SHELL_DEBUG "Enable shell debug logging" OFF)
 
 function(matrix_resolve_feature_deps)
@@ -54,6 +56,12 @@ function(matrix_get_feature_compile_definitions out_var)
     list(APPEND defs MATRIX_CORE_ENABLE_LU=0 MATRIX_SHELL_ENABLE_LU=0)
   endif()
 
+  if(MATRIX_FEATURE_COLROW)
+    list(APPEND defs MATRIX_CORE_ENABLE_COLROW=1 MATRIX_SHELL_ENABLE_COLROW=1)
+  else()
+    list(APPEND defs MATRIX_CORE_ENABLE_COLROW=0 MATRIX_SHELL_ENABLE_COLROW=0)
+  endif()
+
   if(MATRIX_SHELL_DEBUG)
     list(APPEND defs MATRIX_SHELL_ENABLE_DEBUG=1)
   else()
@@ -71,5 +79,5 @@ function(matrix_get_feature_compile_options out_var)
 endfunction()
 
 function(matrix_print_feature_summary)
-  message(STATUS "Matrix features: PROJECTION=${MATRIX_FEATURE_PROJECTION} MINOR_MATRIX=${MATRIX_FEATURE_MINOR_MATRIX} COFACTOR=${MATRIX_FEATURE_COFACTOR} CRAMER=${MATRIX_FEATURE_CRAMER} LU=${MATRIX_FEATURE_LU} SHELL_DEBUG=${MATRIX_SHELL_DEBUG}")
+  message(STATUS "Matrix features: PROJECTION=${MATRIX_FEATURE_PROJECTION} MINOR_MATRIX=${MATRIX_FEATURE_MINOR_MATRIX} COFACTOR=${MATRIX_FEATURE_COFACTOR} CRAMER=${MATRIX_FEATURE_CRAMER} LU=${MATRIX_FEATURE_LU} COLROW=${MATRIX_FEATURE_COLROW} SHELL_DEBUG=${MATRIX_SHELL_DEBUG}")
 endfunction()
