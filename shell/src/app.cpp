@@ -37,9 +37,15 @@ using detail::kScreenW;
 using detail::op_is_binary;
 using detail::op_name;
 
-constexpr std::size_t kSlabBytes = 18u * 1024u;
-constexpr std::size_t kPersistBytes = 9u * 1024u;
-constexpr std::size_t kScratchBytes = 9u * 1024u;
+// Sized from measured peaks rather than guesswork. Across every operation at
+// the largest dimensions the UI allows (6x6, or 6x7 augmented), the worst cases
+// are lu_factor at 2408 bytes of persist beyond the 4608 bytes of slot storage,
+// and lu_solve at 2016 bytes of scratch. The calculator has to hold the
+// decompressed program, this slab and the TeX renderer pool at once, so the
+// margin here is deliberate but not lavish.
+constexpr std::size_t kSlabBytes = 12u * 1024u;
+constexpr std::size_t kPersistBytes = 8u * 1024u; // 4608 slots + 2408 peak = 7016
+constexpr std::size_t kScratchBytes = 4u * 1024u; // 2016 peak
 
 static_assert(kPersistBytes + kScratchBytes == kSlabBytes);
 

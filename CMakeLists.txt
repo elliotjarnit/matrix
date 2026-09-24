@@ -381,6 +381,13 @@ if(MATRIX_ENABLE_TESTS)
   )
   matrix_core_apply(test_mul_colrow)
 
+  add_executable(test_arena_budget
+    ${MATRIX_CORE_SOURCES}
+    ${MATRIX_CORE_HEADERS}
+    ${MATRIX_CORE_DIR}/tests/test_arena_budget.cpp
+  )
+  matrix_core_apply(test_arena_budget)
+
   add_test(NAME rational COMMAND test_rational)
   add_test(NAME matrix_ops COMMAND test_matrix_ops)
   add_test(NAME rref COMMAND test_rref)
@@ -392,6 +399,7 @@ if(MATRIX_ENABLE_TESTS)
   add_test(NAME solve_parametric COMMAND test_solve_parametric)
   add_test(NAME dependency COMMAND test_dependency)
   add_test(NAME mul_colrow COMMAND test_mul_colrow)
+  add_test(NAME arena_budget COMMAND test_arena_budget)
 
   if(MATRIX_FEATURE_MINOR_MATRIX)
     add_test(NAME minor_matrix COMMAND test_minor_matrix)

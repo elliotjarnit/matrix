@@ -38,7 +38,7 @@ Two layers, strictly separated:
 
 ### Memory model
 
-One `malloc` at startup: an 18 KiB `Slab` (`shell/src/app.cpp`) split into two `Arena` bump allocators, `persist_` (9 KiB) and `scratch_` (9 KiB). Everything else — matrices, explanation contexts, working copies — is arena-allocated. The calculator has ~60 KB usable RAM and a 4 KB stack, so **never introduce heap allocation, recursion over matrix size, or large stack frames** (the CE build compiles with `-Wframe-larger-than=127` and `-fstack-usage`).
+One `malloc` at startup: a 12 KiB `Slab` (`shell/src/app.cpp`) split into two `Arena` bump allocators, `persist_` (8 KiB) and `scratch_` (4 KiB); the sizes come from measured peaks and `test_arena_budget` guards them. Everything else — matrices, explanation contexts, working copies — is arena-allocated. The calculator has ~60 KB usable RAM and a 4 KB stack, so **never introduce heap allocation, recursion over matrix size, or large stack frames** (the CE build compiles with `-Wframe-larger-than=127` and `-fstack-usage`).
 
 Arena discipline, which shell code must follow exactly:
 

@@ -10,12 +10,20 @@ Matrix is split into two layers:
 
 ### Memory Architecture
 
-The calculator has roughly **60 KB** of usable RAM and **4 KB** of stack space. Matrix's math engine uses an 18 KiB slab allocated once at startup split into two monotonic bump arenas:
+The calculator has roughly **60 KB** of usable RAM and **4 KB** of stack space. Matrix's math engine uses an 12 KiB slab allocated once at startup split into two monotonic bump arenas:
 
 | Arena | Size | Purpose |
 |---|---|---|
-| **persist** | 9 KiB | Long lived matrix slot storage + ephemeral explanation contexts |
-| **scratch** | 9 KiB | Temporary working memory, reset per-operation or per step render |
+| **persist** | 8 KiB | Long lived matrix slot storage + ephemeral explanation contexts |
+| **scratch** | 4 KiB | Temporary working memory, reset per-operation or per step render |
+
+Sizes come from measured peaks, not guesswork: 4608 bytes of that persist is
+permanent slot storage, and the worst operations on top of it are `op_lu_factor`
+at 2408 bytes of persist and `op_lu_solve` at 2016 bytes of scratch. The program,
+this slab and the 20 KiB TeX renderer pool all live in the calculator's RAM at
+once, so the budget is deliberately tight. `test_arena_budget` runs every
+explained operation at 6x6 against these exact sizes and fails if one no longer
+fits.
 
 There are **zero heap allocations** during normal operation — the single `malloc` happens at startup. This was verified with Valgrind/Massif profiling.
 
@@ -122,6 +130,7 @@ ctest --preset native
 | `test_solve_parametric` | Complete solution of Ax=b in parametric vector form, with step rendering |
 | `test_dependency` | Linear (in)dependence and the dependency relation of each dependent vector |
 | `test_mul_colrow` | Matrix product built as the sum of outer products (column row expansion) |
+| `test_arena_budget` | Every explained op at 6x6 fits the shell arenas (8 KiB persist / 4 KiB scratch) |
 | `test_arena_guards` | Arena allocator boundary checks |
 
 ### CE Target Tests
