@@ -106,7 +106,8 @@ Every operation generates a detailed explanation:
 |---|---|
 | **UP / DOWN** | Scroll through menus and matrix rows |
 | **LEFT / RIGHT** | Navigate matrix columns; page through steps |
-| **[enter]** | Select a menu item, confirm input, or edit a cell |
+| **[0]-[9]** | Start editing the current cell with that digit (in the editor) |
+| **[enter]** | Select a menu item, edit a cell, or save a cell and move to the next one |
 | **[clear]** | Go back one screen |
 | **[del]** | Set the current cell to 0 (in the editor) |
 | **[2nd]** | Finish editing a matrix |
@@ -115,7 +116,9 @@ Every operation generates a detailed explanation:
 
 - Dimensions are set with an arrow key selector (1-6 for both rows and columns)
 - The grid editor shows all cells at once
+- Typing a digit or `(-)` on a cell opens the footer input line with that keystroke already entered, so no [enter] is needed to start
 - Cell values are entered in a footer input line (supports multi digit numbers and negative signs)
+- Saving with [enter] moves to the next cell, wrapping to the start of the next row, and stops on the last cell
 - Resizing a matrix clears its contents
 
 ### Step Viewer
