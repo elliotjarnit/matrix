@@ -59,6 +59,7 @@ enum class OperationId : std::uint8_t {
 		Invertible,
 		Transformation,
 		MulColRow,
+		Basis, // Col(A), Nul(A), their bases and the rank theorem
 };
 
 struct MenuState {
@@ -141,6 +142,7 @@ enum class PageKind : std::uint8_t {
 		ProjectionResult,
 		LuResult,
 		CramerStepsMenu,
+		BasisResult,
 		Steps,
 		Confirm,
 };
@@ -187,6 +189,26 @@ struct LuResultState {
 		const matrix_core::Rational* p_data;
 };
 
+// Col(A) / Nul(A). Both bases live in the persist tail; a zero subspace is
+// stored as a single zero column, so `rank` / `nullity` (not the column counts)
+// say how many basis vectors there are.
+struct BasisResultState {
+		std::uint8_t slot_a;
+		std::uint8_t mode; // 0=summary, 1=Col(A) basis, 2=Nul(A) basis
+		bool has_steps;
+
+		std::uint8_t rows; // m
+		std::uint8_t cols; // n
+		std::uint8_t rank;
+		std::uint8_t nullity;
+		std::uint8_t pivot_mask;
+
+		std::uint8_t stride_col;
+		std::uint8_t stride_nul;
+		const matrix_core::Rational* col_data; // m x max(rank, 1)
+		const matrix_core::Rational* nul_data; // n x max(nullity, 1)
+};
+
 struct CramerStepsMenuState {
 		std::uint8_t slot_a;
 		std::uint8_t slot_b;
@@ -212,6 +234,7 @@ struct Page {
 				ProjectionResultState proj;
 				LuResultState lu;
 				CramerStepsMenuState cramer_steps;
+				BasisResultState basis;
 				StepsState steps;
 				ConfirmState confirm;
 		} u;
@@ -252,6 +275,17 @@ struct Page {
 		        const matrix_core::Rational* u_data,
 		        std::uint8_t stride_p,
 		        const matrix_core::Rational* p_data) noexcept;
+		static Page make_basis_result(std::uint8_t slot_a,
+		        bool has_steps,
+		        std::uint8_t rows,
+		        std::uint8_t cols,
+		        std::uint8_t rank,
+		        std::uint8_t nullity,
+		        std::uint8_t pivot_mask,
+		        std::uint8_t stride_col,
+		        const matrix_core::Rational* col_data,
+		        std::uint8_t stride_nul,
+		        const matrix_core::Rational* nul_data) noexcept;
 		static Page make_cramer_steps_menu(std::uint8_t slot_a, std::uint8_t slot_b, std::uint8_t n) noexcept;
 		static Page make_result_cofactor_element(
 		        std::uint8_t slot_a, std::uint8_t i, std::uint8_t j, bool has_steps, std::int64_t num, std::int64_t den) noexcept;
@@ -323,6 +357,7 @@ class App {
 		void render_projection_result(const ProjectionResultState& s) noexcept;
 		void render_lu_result(const LuResultState& s) noexcept;
 		void render_cramer_steps_menu(const CramerStepsMenuState& s) noexcept;
+		void render_basis_result(const BasisResultState& s) noexcept;
 		void render_steps(const StepsState& s) noexcept;
 		void render_cofactor_element(const CofactorElementState& s) noexcept;
 		void render_confirm(const ConfirmState& s) noexcept;
@@ -339,6 +374,7 @@ class App {
 		void update_projection_result(ProjectionResultState& s) noexcept;
 		void update_lu_result(LuResultState& s) noexcept;
 		void update_cramer_steps_menu(CramerStepsMenuState& s) noexcept;
+		void update_basis_result(BasisResultState& s) noexcept;
 		void update_steps(StepsState& s) noexcept;
 		void update_confirm(ConfirmState& s) noexcept;
 
@@ -349,6 +385,7 @@ class App {
 		void run_transformation(std::uint8_t slot) noexcept;
 		void run_lu_factor(std::uint8_t slot, bool allow_swaps) noexcept;
 		void run_lu_solve(std::uint8_t slot_a, std::uint8_t slot_b, bool allow_swaps) noexcept;
+		void run_basis(std::uint8_t slot) noexcept;
 
 		matrix_core::ErrorCode ensure_slot_allocated(std::uint8_t slot) noexcept;
 		void clear_slot(std::uint8_t slot) noexcept;

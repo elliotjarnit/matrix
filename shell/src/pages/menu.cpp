@@ -45,10 +45,19 @@ struct OpMenuEntry {
 		TextId label = TextId::None; // optional override; otherwise uses `op_name(op)`
 };
 
+#if MATRIX_SHELL_BASIS_ONLY
+// MatrixBasis has a single operation, so it sits on the main menu directly
+static_assert(MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS, "MATRIX_SHELL_BASIS_ONLY needs MATRIX_FEATURE_BASIS");
+constexpr MenuEntry kMainMenuEntries[] = {
+        {"menu.entry.matrices"_tid, MenuEntryKind::Submenu, MenuId::Matrices, OperationId::Add},
+        {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Basis},
+};
+#else
 constexpr MenuEntry kMainMenuEntries[] = {
         {"menu.entry.matrices"_tid, MenuEntryKind::Submenu, MenuId::Matrices, OperationId::Add},
         {"menu.entry.operations"_tid, MenuEntryKind::Submenu, MenuId::Operations, OperationId::Add},
 };
+#endif
 
 constexpr MenuEntry kMatricesMenuEntries[] = {
         {"menu.entry.edit_slots"_tid, MenuEntryKind::Submenu, MenuId::SlotList, OperationId::Add},
@@ -76,6 +85,9 @@ constexpr MenuEntry kOperationsMenuEntries[] = {
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::LuSolve},
 #if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
         {"menu.entry.spaces"_tid, MenuEntryKind::Submenu, MenuId::Spaces, OperationId::Add},
+#endif
+#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
+        {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Basis},
 #endif
         {TextId::None, MenuEntryKind::Operation, MenuId::Main, OperationId::Projection},
 };
@@ -163,7 +175,7 @@ void App::render_menu(const MenuState& s) noexcept {
 		std::uint8_t base_ops_count = 0;
 
 		if (s.id == MenuId::Main) {
-				title = "menu.main.title"_tx;
+				title = MATRIX_SHELL_BASIS_ONLY ? "menu.main.basis_title"_tx : "menu.main.title"_tx;
 				base_entries = kMainMenuEntries;
 				base_count = array_count(kMainMenuEntries);
 				render_footer_hint("footer.select_exit"_tx);

@@ -135,6 +135,21 @@ int main() {
 						assert(e.render_step(i, bufs) != ErrorCode::Overflow);
 		}
 
+#if MATRIX_CORE_ENABLE_BASIS
+		// Col(A) / Nul(A): both bases stay in persist for the result page
+		{
+				reset();
+				MatrixMutView a = fill(persist, 6, 6, 11);
+				MatrixMutView col{}, nul{};
+				BasisInfo info{};
+				Explanation e;
+				assert(is_ok(
+				        op_basis(a.view(), persist, scratch, &col, &nul, &info, &e, ExplainOptions{.enable = true, .persist = &persist})));
+				for (std::size_t i = 0; i < e.step_count(); i++)
+						assert(e.render_step(i, bufs) != ErrorCode::Overflow);
+		}
+#endif
+
 #if MATRIX_CORE_ENABLE_LU
 		// LU factorisation is the persist high water mark
 		{

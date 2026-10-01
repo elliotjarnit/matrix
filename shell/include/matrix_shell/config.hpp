@@ -44,3 +44,12 @@
 #ifndef MATRIX_SHELL_ENABLE_SPACE_BASES
 #define MATRIX_SHELL_ENABLE_SPACE_BASES 1
 #endif
+#ifndef MATRIX_SHELL_ENABLE_BASIS
+#define MATRIX_SHELL_ENABLE_BASIS 1
+#endif
+
+// MatrixBasis: a separate program whose only operation is the Col(A) / Nul(A)
+// analysis. Set per target by CMake (MATRIX_BUILD_CE_SHELL_BASIS).
+#ifndef MATRIX_SHELL_BASIS_ONLY
+#define MATRIX_SHELL_BASIS_ONLY 0
+#endif

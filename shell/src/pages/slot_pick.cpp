@@ -212,6 +212,18 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 		        (unsigned)persist_.used(),
 		        (unsigned)persist_.capacity());
 
+#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
+		if (s.op == OperationId::Basis) {
+				run_basis(sel);
+				return;
+		}
+#endif
+
+#if MATRIX_SHELL_BASIS_ONLY
+		// MatrixBasis offers no other operation. Compiling the rest of the
+		// dispatch out lets LTO drop every other core op from the program.
+		fail_fast("update_slot_pick: unexpected op in the basis only build");
+#else
 		// steps are enabled per operation below when supported
 
 		if (!op_is_binary(s.op)) {
@@ -1139,6 +1151,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 		REQUIRE(pop(), "pop failed (binary op)");
 		REQUIRE(push(Page::make_result_matrix(s.op, a_slot, b_slot, expl_.available(), out.rows, out.cols, out.stride, out.data)),
 		        "push binary result failed");
+#endif // MATRIX_SHELL_BASIS_ONLY
 }
 
 } // namespace matrix_shell

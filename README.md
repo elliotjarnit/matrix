@@ -65,6 +65,19 @@ Linear algebra courses require you to work through lengthy and repetitive calcul
 | **Span Test** | Test whether a vector is in the span of a set or R^m |
 | **Independence Test** | Test whether a set of vectors is linearly independent |
 | **Solve via RREF** | Solve a linear system using row reduction |
+| **Col(A) & Nul(A)** | Col(A) and Nul(A), a basis for each, rank and dimensions, checked with the rank theorem |
+
+### MatrixBasis
+
+**MatrixBasis** (`MATBASIS.8xp`) is a separate, smaller program that does only one thing: pick a matrix A and it shows
+
+- **Col(A)** = Span of the columns of A, a subspace of R^m, and **Nul(A)** = {x : Ax = 0}, a subspace of R^n
+- the **pivot columns** and **free variables**
+- a **basis for Col(A)** (the pivot columns of A) and a **basis for Nul(A)** (one vector per free variable)
+- **rank(A) = dim Col(A)** and **dim Nul(A)**
+- the **rank theorem** check: rank(A) + dim Nul(A) = n
+
+Press **left/right** on the result screen to switch between the summary, the Col(A) basis and the Nul(A) basis, and **[2nd]** for the steps: the definitions, every row operation to RREF, the pivot columns, the Col(A) basis, the pivot variables solved in terms of the free ones, x in parametric vector form, the Nul(A) basis, and the rank theorem with the numbers filled in. Install it exactly like `MATLITE.8xp` (it needs the same fonts and clibs); the two can be on the calculator at the same time.
 
 ### LU Factorization
 

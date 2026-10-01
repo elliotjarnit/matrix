@@ -165,8 +165,14 @@ constexpr OpMeta kOpMeta[] = {
 #else
         {TextId::None, true, false},
 #endif
+/* Basis */
+#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
+        {"op.basis"_tid, false, true},
+#else
+        {TextId::None, false, false},
+#endif
 };
-static_assert(sizeof(kOpMeta) / sizeof(kOpMeta[0]) == static_cast<std::size_t>(OperationId::MulColRow) + 1u, "Update kOpMeta");
+static_assert(sizeof(kOpMeta) / sizeof(kOpMeta[0]) == static_cast<std::size_t>(OperationId::Basis) + 1u, "Update kOpMeta");
 
 const OpMeta& op_meta(OperationId op) noexcept {
 		const std::size_t idx = static_cast<std::size_t>(op);
@@ -213,6 +219,23 @@ matrix_core::ColRowLabels colrow_labels() noexcept {
 		labels.intro = "colrow.intro"_tx;
 		labels.term = "colrow.term"_tx;
 		labels.sum = "colrow.sum"_tx;
+		return labels;
+}
+#endif
+
+#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
+matrix_core::BasisLabels basis_labels() noexcept {
+		matrix_core::BasisLabels labels{};
+		labels.col_def = "basis.col_def"_tx;
+		labels.nul_def = "basis.nul_def"_tx;
+		labels.rref = "basis.rref"_tx;
+		labels.pivots = "basis.pivots"_tx;
+		labels.col_basis = "basis.col_basis"_tx;
+		labels.nul_solve = "basis.nul_solve"_tx;
+		labels.nul_vector = "basis.nul_vector"_tx;
+		labels.nul_basis = "basis.nul_basis"_tx;
+		labels.rank_theorem = "basis.rank_theorem"_tx;
+		labels.free_word = "basis.free"_tx;
 		return labels;
 }
 #endif

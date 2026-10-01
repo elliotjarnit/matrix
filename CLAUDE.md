@@ -12,7 +12,7 @@ Step-by-step linear algebra program for the TI-84 Plus CE. Exact rational arithm
 cmake --preset native && cmake --build --preset native && ctest --preset native
 ```
 
-Run one test: `ctest --preset native -R det` (test names are the `add_test(NAME ...)` labels in `CMakeLists.txt`: `rational`, `matrix_ops`, `rref`, `det`, `inverse`, `vectors`, `spaces`, `arena_guards`, and the feature-gated `minor_matrix`, `cofactor_element`, `cramer`). Or run the binary directly: `./build/native/test_det`. Tests are plain `int main()` + `assert` — no framework; a failure aborts.
+Run one test: `ctest --preset native -R det` (test names are the `add_test(NAME ...)` labels in `CMakeLists.txt`: `rational`, `matrix_ops`, `rref`, `det`, `inverse`, `vectors`, `spaces`, `arena_guards`, and the feature-gated `minor_matrix`, `cofactor_element`, `cramer`, `lu`, `mul_colrow`, `basis`). Or run the binary directly: `./build/native/test_det`. Tests are plain `int main()` + `assert` — no framework; a failure aborts.
 
 Sanitizers: presets `native-asan`, `native-ubsan`, `native-lsan`, `native-coverage` (same configure/build/ctest pattern, `build/<preset>/`).
 
@@ -24,7 +24,8 @@ cmake --preset ce -DCEDEV_ROOT=/path/to/CEdev && cmake --build --preset ce
 
 - **`CEDEV_ROOT` defaults to a hard-coded `/home/sightem/CEdev`** (`cmake/CEdevToolchain.cmake:64`) — always pass it explicitly.
 - Requires the submodule: `git submodule update --init --recursive` (`third_party/libtexce` is empty on a fresh clone and the CE build needs its `src/tex/*.c`).
-- Output: `build/ce/matrix_shell/bin/MATRIX.8xp`. Other CE presets: `ce-release-fr` (`MATRIXFR.8xp`), `ce-release-dual-lang` (both, used by CI), `ce-debug` / `ce-debug-fr` (enables `MATRIX_SHELL_DEBUG` + CEmu debug console).
+- Output: `build/ce/matrix_shell/bin/MATLITE.8xp`. Other CE presets: `ce-release-fr` (`MATLITFR.8xp`), `ce-release-dual-lang` (both, used by CI), `ce-debug` / `ce-debug-fr` (enables `MATRIX_SHELL_DEBUG` + CEmu debug console).
+- `ce-basis` builds **MatrixBasis** (`build/ce-basis/matrix_shell_basis/bin/MATBASIS.8xp`): only the Col(A)/Nul(A) op (`MATRIX_FEATURE_BASIS`), shell compiled with `MATRIX_SHELL_BASIS_ONLY=1`. Also `ce-basis-dual-lang`, `ce-basis-debug`.
 - Core unit tests can be built as standalone `.8xp` programs for CEmu with `-DMATRIX_BUILD_CE_TESTS=ON`; they report via `dbg_printf`, there is no automation.
 
 clangd setup (generates two compile DBs — native for `core/`, a host-clang shim DB for `shell/` since ez80 sources can't be parsed directly): `python tools/setup_clangd.py --cedev /path/to/CEdev`.

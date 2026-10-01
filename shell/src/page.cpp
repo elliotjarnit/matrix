@@ -131,6 +131,36 @@ Page Page::make_projection_result(std::uint8_t slot_u,
 		return p;
 }
 
+Page Page::make_basis_result(std::uint8_t slot_a,
+        bool has_steps,
+        std::uint8_t rows,
+        std::uint8_t cols,
+        std::uint8_t rank,
+        std::uint8_t nullity,
+        std::uint8_t pivot_mask,
+        std::uint8_t stride_col,
+        const matrix_core::Rational* col_data,
+        std::uint8_t stride_nul,
+        const matrix_core::Rational* nul_data) noexcept {
+		Page p{};
+		p.kind = PageKind::BasisResult;
+		p.u.basis = BasisResultState{
+		        .slot_a = slot_a,
+		        .mode = 0,
+		        .has_steps = has_steps,
+		        .rows = rows,
+		        .cols = cols,
+		        .rank = rank,
+		        .nullity = nullity,
+		        .pivot_mask = pivot_mask,
+		        .stride_col = stride_col,
+		        .stride_nul = stride_nul,
+		        .col_data = col_data,
+		        .nul_data = nul_data,
+		};
+		return p;
+}
+
 Page Page::make_lu_result(std::uint8_t slot_a,
         bool has_steps,
         std::uint8_t rows,

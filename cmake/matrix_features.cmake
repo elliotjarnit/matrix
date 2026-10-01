@@ -24,6 +24,10 @@ option(MATRIX_FEATURE_INVERSE "Enable the matrix inverse operation" ON)
 option(MATRIX_FEATURE_TRANSPOSE "Enable the transpose operation" ON)
 option(MATRIX_FEATURE_SPACE_BASES "Enable the column/row/null/left-null space basis operations" ON)
 
+# Col(A) / Nul(A) with their bases, dimensions and the rank theorem: the one
+# operation the MatrixBasis build (MATRIX_BUILD_CE_SHELL_BASIS) is made of.
+option(MATRIX_FEATURE_BASIS "Enable the Col(A) / Nul(A) basis and rank theorem operation" ON)
+
 option(MATRIX_SHELL_DEBUG "Enable shell debug logging" OFF)
 
 function(matrix_resolve_feature_deps)
@@ -93,6 +97,12 @@ function(matrix_get_feature_compile_definitions out_var)
     list(APPEND defs MATRIX_CORE_ENABLE_SPACE_BASES=0 MATRIX_SHELL_ENABLE_SPACE_BASES=0)
   endif()
 
+  if(MATRIX_FEATURE_BASIS)
+    list(APPEND defs MATRIX_CORE_ENABLE_BASIS=1 MATRIX_SHELL_ENABLE_BASIS=1)
+  else()
+    list(APPEND defs MATRIX_CORE_ENABLE_BASIS=0 MATRIX_SHELL_ENABLE_BASIS=0)
+  endif()
+
   if(MATRIX_SHELL_DEBUG)
     list(APPEND defs MATRIX_SHELL_ENABLE_DEBUG=1)
   else()
@@ -110,5 +120,5 @@ function(matrix_get_feature_compile_options out_var)
 endfunction()
 
 function(matrix_print_feature_summary)
-  message(STATUS "Matrix features: PROJECTION=${MATRIX_FEATURE_PROJECTION} MINOR_MATRIX=${MATRIX_FEATURE_MINOR_MATRIX} COFACTOR=${MATRIX_FEATURE_COFACTOR} CRAMER=${MATRIX_FEATURE_CRAMER} LU=${MATRIX_FEATURE_LU} COLROW=${MATRIX_FEATURE_COLROW} VECTOR_OPS=${MATRIX_FEATURE_VECTOR_OPS} INVERSE=${MATRIX_FEATURE_INVERSE} TRANSPOSE=${MATRIX_FEATURE_TRANSPOSE} SPACE_BASES=${MATRIX_FEATURE_SPACE_BASES} SHELL_DEBUG=${MATRIX_SHELL_DEBUG}")
+  message(STATUS "Matrix features: PROJECTION=${MATRIX_FEATURE_PROJECTION} MINOR_MATRIX=${MATRIX_FEATURE_MINOR_MATRIX} COFACTOR=${MATRIX_FEATURE_COFACTOR} CRAMER=${MATRIX_FEATURE_CRAMER} LU=${MATRIX_FEATURE_LU} COLROW=${MATRIX_FEATURE_COLROW} VECTOR_OPS=${MATRIX_FEATURE_VECTOR_OPS} INVERSE=${MATRIX_FEATURE_INVERSE} TRANSPOSE=${MATRIX_FEATURE_TRANSPOSE} SPACE_BASES=${MATRIX_FEATURE_SPACE_BASES} BASIS=${MATRIX_FEATURE_BASIS} SHELL_DEBUG=${MATRIX_SHELL_DEBUG}")
 endfunction()

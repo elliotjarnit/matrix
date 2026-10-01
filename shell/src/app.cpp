@@ -287,6 +287,11 @@ bool App::step() noexcept {
 				update_cramer_steps_menu(p.u.cramer_steps);
 				break;
 #endif
+#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
+		case PageKind::BasisResult:
+				update_basis_result(p.u.basis);
+				break;
+#endif
 		case PageKind::Steps:
 				update_steps(p.u.steps);
 				break;
@@ -377,6 +382,11 @@ void App::render() noexcept {
 #if MATRIX_SHELL_ENABLE_CRAMER && MATRIX_CORE_ENABLE_CRAMER
 		case PageKind::CramerStepsMenu:
 				render_cramer_steps_menu(p.u.cramer_steps);
+				break;
+#endif
+#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
+		case PageKind::BasisResult:
+				render_basis_result(p.u.basis);
 				break;
 #endif
 		case PageKind::Steps:

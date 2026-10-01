@@ -92,6 +92,7 @@ Optional operations can be toggled at configure time to reduce binary size:
 | `MATRIX_FEATURE_INVERSE` | ON | OFF | Matrix inverse (the invertibility verdict is separate) |
 | `MATRIX_FEATURE_TRANSPOSE` | ON | OFF | Transpose |
 | `MATRIX_FEATURE_SPACE_BASES` | ON | OFF | Column / row / null / left-null space bases |
+| `MATRIX_FEATURE_BASIS` | ON | OFF (ON for `ce-basis*`) | Col(A) / Nul(A) with bases, dimensions and the rank theorem |
 
 The CE presets are a deliberately reduced build. Everything not needed for the
 Math 210 review sheets is off, which is what keeps the program inside the
@@ -106,6 +107,25 @@ The CE presets also pin `MATRIX_FEATURE_CRAMER=OFF`. A TI variable holds at most
 `MATRIX1.8xv` appvars, which the release workflow does not publish. Turning it
 back on is fine for local use, but check the `convbin` output for
 `Input too large; split across N appvars` before shipping the result.
+
+### MatrixBasis (`MATBASIS.8xp`)
+
+MatrixBasis is a second CE program built from the same sources with a single
+operation, **Col(A) & Nul(A)**, which sits directly on the main menu next to
+Matrices. The `ce-basis` preset turns every optional feature off except
+`MATRIX_FEATURE_BASIS`, and builds the shell with `MATRIX_SHELL_BASIS_ONLY=1`,
+which compiles the rest of the slot picker's dispatch out so LTO drops the
+other core operations. TI program names are capped at 8 characters, hence
+`MATBASIS` (and `MATBASFR` for French); it can sit next to `MATLITE`.
+
+```bash
+cmake --preset ce-basis -DCEDEV_ROOT=/path/to/CEdev
+cmake --build --preset ce-basis
+```
+
+The output is `build/ce-basis/matrix_shell_basis/bin/MATBASIS.8xp`. Use
+`ce-basis-dual-lang` for both languages, or `ce-basis-debug` for the CEmu
+debug console. The same `TeXFonts.8xv` / `TeXScrpt.8xv` are required.
 
 Example: enable Cramer's rule on the CE build:
 
@@ -141,6 +161,7 @@ ctest --preset native
 | `test_spaces` | Column/row/null space basis extraction |
 | `test_solve_parametric` | Complete solution of Ax=b in parametric vector form, with step rendering |
 | `test_dependency` | Linear (in)dependence and the dependency relation of each dependent vector |
+| `test_basis` | Col(A) / Nul(A) bases, dimensions, the rank theorem, and step rendering into the shell buffers |
 | `test_mul_colrow` | Matrix product built as the sum of outer products (column row expansion) |
 | `test_arena_budget` | Every explained op at 6x6 fits the shell arenas (8 KiB persist / 4 KiB scratch) |
 | `test_arena_guards` | Arena allocator boundary checks |

@@ -10,6 +10,8 @@ option(MATRIX_STRICT_WARNINGS "Enable -Werror and extra warnings" ON)
 option(MATRIX_BUILD_CE_SHELL "Build the Matrix shell program when MATRIX_BUILD_CE=ON" ON)
 option(MATRIX_BUILD_CE_SHELL_EN "Build English Matrix shell when MATRIX_BUILD_CE_SHELL=ON" ON)
 option(MATRIX_BUILD_CE_SHELL_FR "Build French Matrix shell when MATRIX_BUILD_CE_SHELL=ON" OFF)
+option(MATRIX_BUILD_CE_SHELL_BASIS "Build the English MatrixBasis program (Col(A) / Nul(A) only) when MATRIX_BUILD_CE_SHELL=ON" OFF)
+option(MATRIX_BUILD_CE_SHELL_BASIS_FR "Build the French MatrixBasis program when MATRIX_BUILD_CE_SHELL=ON" OFF)
 option(MATRIX_BUILD_CE_TESTS "Build core unit tests as CE programs when MATRIX_BUILD_CE=ON" OFF)
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/matrix_features.cmake)
@@ -90,6 +92,12 @@ if(MATRIX_FEATURE_LU)
   )
 endif()
 
+if(MATRIX_FEATURE_BASIS)
+  list(APPEND MATRIX_CORE_SOURCES
+    ${MATRIX_CORE_DIR}/src/ops_basis_ondemand.cpp
+  )
+endif()
+
 if(MATRIX_BUILD_CE)
   set(MATRIX_LIBTEXCE_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/libtexce")
 
@@ -117,6 +125,7 @@ if(MATRIX_BUILD_CE)
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/page.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/main_ce.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/text.cpp
+      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/basis.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/cofactor.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/confirm.cpp
       ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/dim.cpp
@@ -145,7 +154,7 @@ if(MATRIX_BUILD_CE)
       ${MATRIX_FEATURE_COMPILE_OPTIONS}
     )
 
-    function(matrix_add_ce_shell target_name program_name description_text lang_fr_value)
+    function(matrix_add_ce_shell target_name program_name description_text lang_fr_value basis_only_value)
       cedev_add_program(
         TARGET ${target_name}
         NAME ${program_name}
@@ -166,19 +175,36 @@ if(MATRIX_BUILD_CE)
         COMPILE_OPTIONS
           ${MATRIX_SHELL_CE_COMPILE_OPTIONS}
           -DMATRIX_SHELL_LANG_FR=${lang_fr_value}
+          -DMATRIX_SHELL_BASIS_ONLY=${basis_only_value}
       )
     endfunction()
 
     if(MATRIX_BUILD_CE_SHELL_EN)
-      matrix_add_ce_shell(matrix_shell MATLITE "MatrixLite (English)" 0)
+      matrix_add_ce_shell(matrix_shell MATLITE "MatrixLite (English)" 0 0)
     endif()
 
     if(MATRIX_BUILD_CE_SHELL_FR)
-      matrix_add_ce_shell(matrix_shell_fr MATLITFR "MatrixLite (Francaise)" 1)
+      matrix_add_ce_shell(matrix_shell_fr MATLITFR "MatrixLite (Francaise)" 1 0)
     endif()
 
-    if(NOT MATRIX_BUILD_CE_SHELL_EN AND NOT MATRIX_BUILD_CE_SHELL_FR)
-      message(WARNING "MATRIX_BUILD_CE_SHELL=ON but both MATRIX_BUILD_CE_SHELL_EN and MATRIX_BUILD_CE_SHELL_FR are OFF; no shell binary will be produced.")
+    # MatrixBasis: the same shell cut down to the Col(A) / Nul(A) operation.
+    # TI program names are at most 8 characters, hence MATBASIS.
+    if(MATRIX_BUILD_CE_SHELL_BASIS OR MATRIX_BUILD_CE_SHELL_BASIS_FR)
+      if(NOT MATRIX_FEATURE_BASIS)
+        message(FATAL_ERROR "MATRIX_BUILD_CE_SHELL_BASIS needs MATRIX_FEATURE_BASIS=ON")
+      endif()
+    endif()
+
+    if(MATRIX_BUILD_CE_SHELL_BASIS)
+      matrix_add_ce_shell(matrix_shell_basis MATBASIS "MatrixBasis (English)" 0 1)
+    endif()
+
+    if(MATRIX_BUILD_CE_SHELL_BASIS_FR)
+      matrix_add_ce_shell(matrix_shell_basis_fr MATBASFR "MatrixBasis (Francaise)" 1 1)
+    endif()
+
+    if(NOT MATRIX_BUILD_CE_SHELL_EN AND NOT MATRIX_BUILD_CE_SHELL_FR AND NOT MATRIX_BUILD_CE_SHELL_BASIS AND NOT MATRIX_BUILD_CE_SHELL_BASIS_FR)
+      message(WARNING "MATRIX_BUILD_CE_SHELL=ON but every shell variant is OFF; no shell binary will be produced.")
     endif()
   endif()
 
@@ -350,6 +376,15 @@ if(MATRIX_ENABLE_TESTS)
   )
   matrix_core_apply(test_spaces)
 
+  if(MATRIX_FEATURE_BASIS)
+    add_executable(test_basis
+      ${MATRIX_CORE_SOURCES}
+      ${MATRIX_CORE_HEADERS}
+      ${MATRIX_CORE_DIR}/tests/test_basis.cpp
+    )
+    matrix_core_apply(test_basis)
+  endif()
+
   if(MATRIX_FEATURE_LU)
     add_executable(test_lu
       ${MATRIX_CORE_SOURCES}
@@ -421,5 +456,8 @@ if(MATRIX_ENABLE_TESTS)
   endif()
   if(MATRIX_FEATURE_LU)
     add_test(NAME lu COMMAND test_lu)
+  endif()
+  if(MATRIX_FEATURE_BASIS)
+    add_test(NAME basis COMMAND test_basis)
   endif()
 endif()

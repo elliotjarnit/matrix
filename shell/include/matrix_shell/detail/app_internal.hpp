@@ -46,6 +46,9 @@ matrix_core::DependencyLabels dependency_labels() noexcept;
 matrix_core::ColRowLabels colrow_labels() noexcept;
 #endif
 matrix_core::LuLabels lu_labels() noexcept;
+#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
+matrix_core::BasisLabels basis_labels() noexcept;
+#endif
 
 void dbg_print_i64(std::int64_t v) noexcept;
 void dbg_print_rational(matrix_core::Rational r) noexcept;

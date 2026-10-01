@@ -137,3 +137,30 @@ Error op_mul_colrow(MatrixView a,
 
 } // namespace matrix_core
 #endif // !MATRIX_CORE_ENABLE_COLROW
+
+#if !MATRIX_CORE_ENABLE_BASIS
+namespace matrix_core {
+
+Error op_basis(MatrixView a,
+        Arena& persist,
+        Arena& scratch,
+        MatrixMutView* out_col_basis,
+        MatrixMutView* out_null_basis,
+        BasisInfo* info,
+        Explanation* expl,
+        const ExplainOptions& opts,
+        const BasisLabels& labels) noexcept {
+		(void)a;
+		(void)persist;
+		(void)scratch;
+		(void)out_col_basis;
+		(void)out_null_basis;
+		(void)info;
+		(void)expl;
+		(void)opts;
+		(void)labels;
+		return err_feature_disabled();
+}
+
+} // namespace matrix_core
+#endif // !MATRIX_CORE_ENABLE_BASIS
