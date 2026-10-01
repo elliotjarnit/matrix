@@ -1,0 +1,17 @@
+// Strings of module "vectors"; see shell/include/matrix_shell/text_catalog.inc
+
+MATRIX_SHELL_TEXT_ENTRY(OpDot, "op.dot", "Dot Product", "Produit scalaire")
+MATRIX_SHELL_TEXT_ENTRY(OpCross, "op.cross", "Cross Product", "Produit vectoriel")
+MATRIX_SHELL_TEXT_ENTRY(OpProjection, "op.projection", "Projection", "Projection")
+MATRIX_SHELL_TEXT_ENTRY(FooterProjectionStepsBack, "footer.projection_steps_back", "LEFT/RIGHT: Toggle  2ND: Steps  CLEAR: Back", "LEFT/RIGHT: Toggle  2ND: Etapes  CLEAR: Retour")
+MATRIX_SHELL_TEXT_ENTRY(FooterProjectionBack, "footer.projection_back", "LEFT/RIGHT: Toggle  CLEAR: Back", "LEFT/RIGHT: Toggle  CLEAR: Retour")
+MATRIX_SHELL_TEXT_ENTRY(ResultProjectionTitle, "result.projection_title", "Projection", "Projection")
+MATRIX_SHELL_TEXT_ENTRY(ResultProjLabel, "result.proj_label", "proj", "proj")
+MATRIX_SHELL_TEXT_ENTRY(ResultOrthLabel, "result.orth_label", "orth", "orth")
+MATRIX_SHELL_TEXT_ENTRY(ResultKLabel, "result.k_label", "k: ", "k: ")
+MATRIX_SHELL_TEXT_ENTRY(ResultProjectionUPrefix, "result.proj_u_prefix", " (u=", " (u=")
+MATRIX_SHELL_TEXT_ENTRY(ResultProjectionVPrefix, "result.proj_v_prefix", ", v=", ", v=")
+MATRIX_SHELL_TEXT_ENTRY(MessageNeedVectors, "msg.need_vectors", "Need vectors (n x 1 or 1 x n)", "Vecteurs requis (n x 1 ou 1 x n)")
+MATRIX_SHELL_TEXT_ENTRY(MessageNeed3DVectors, "msg.need_3d_vectors", "Need 3D vectors", "Vecteurs 3D requis")
+MATRIX_SHELL_TEXT_ENTRY(MessageVZeroVector, "msg.v_zero_vector", "v is zero vector", "v est le vecteur nul")
+MATRIX_SHELL_TEXT_ENTRY(MessageNeedSameLengthPrefix, "msg.need_same_length_prefix", "Need same length. ", "Meme longueur requise. ")

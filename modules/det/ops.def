@@ -1,0 +1,3 @@
+// MATRIX_OP(Id, "op.text_key", is_binary, run, result_body, result_steps):
+// see matrix_shell/app.hpp
+MATRIX_OP(Det, "op.det", false, run_det, render_result_det, open_result_steps)

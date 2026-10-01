@@ -1,0 +1,5 @@
+// MATRIX_OP(Id, "op.text_key", is_binary, run, result_body, result_steps):
+// see matrix_shell/app.hpp
+MATRIX_OP(SpanTest, "op.span_test", false, run_span_test, render_result_span_indep, open_result_steps)
+MATRIX_OP(IndepTest, "op.indep_test", false, run_indep_test, render_result_span_indep, open_result_steps)
+MATRIX_OP(Transformation, "op.transformation", false, run_transformation, render_result_transformation, open_result_steps)

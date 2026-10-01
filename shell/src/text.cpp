@@ -7,14 +7,14 @@ namespace {
 constexpr const char* kText[] = {
         "",
 #define MATRIX_SHELL_TEXT_ENTRY(id, key, en, fr) fr,
-#include "matrix_shell/text_catalog.inc"
+#include "matrix_shell/program/text.inc"
 #undef MATRIX_SHELL_TEXT_ENTRY
 };
 #else
 constexpr const char* kText[] = {
         "",
 #define MATRIX_SHELL_TEXT_ENTRY(id, key, en, fr) en,
-#include "matrix_shell/text_catalog.inc"
+#include "matrix_shell/program/text.inc"
 #undef MATRIX_SHELL_TEXT_ENTRY
 };
 #endif

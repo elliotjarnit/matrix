@@ -1,0 +1,6 @@
+// MATRIX_OP(Id, "op.text_key", is_binary, run, result_body, result_steps):
+// see matrix_shell/app.hpp
+MATRIX_OP(ColSpaceBasis, "op.col_basis", false, run_space_basis, render_result_space_basis, open_result_steps)
+MATRIX_OP(RowSpaceBasis, "op.row_basis", false, run_space_basis, render_result_space_basis, open_result_steps)
+MATRIX_OP(NullSpaceBasis, "op.null_basis", false, run_space_basis, render_result_space_basis, open_result_steps)
+MATRIX_OP(LeftNullSpaceBasis, "op.left_null_basis", false, run_space_basis, render_result_space_basis, open_result_steps)

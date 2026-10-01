@@ -38,8 +38,8 @@ jobs:
       - name: Collect release assets
         run: |
           mkdir -p release-assets
-          cp build/cdl/matrix_shell/bin/MATLITE.8xp release-assets/
-          cp build/cdl/matrix_shell_fr/bin/MATLITFR.8xp release-assets/
+          cp build/cdl/matlite/bin/MATLITE.8xp release-assets/
+          cp build/cdl/matlite_fr/bin/MATLITFR.8xp release-assets/
           cp third_party/libtexce/assets/TeXFonts.8xv release-assets/
           cp third_party/libtexce/assets/TeXScrpt.8xv release-assets/
           ls -lh release-assets

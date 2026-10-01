@@ -6,7 +6,6 @@
 #include "matrix_shell/detail/app_internal.hpp"
 
 #include "matrix_core/ops.hpp"
-#include "matrix_core/spaces.hpp"
 #include "matrix_core/writer.hpp"
 
 #include <graphx.h>
@@ -17,12 +16,8 @@
 
 namespace matrix_shell {
 namespace {
-#if MATRIX_SHELL_ENABLE_COLROW && MATRIX_CORE_ENABLE_COLROW
-using detail::colrow_labels;
-#endif
 using detail::dbg_print_matrix;
 using detail::dbg_print_rational;
-using detail::dependency_labels;
 using detail::fail_fast;
 using detail::keep_cursor_in_view;
 using detail::kKbGroup1;
@@ -84,86 +79,6 @@ void App::render_slot_pick(const SlotPickState& s) noexcept {
 		}
 }
 
-// Q1 on the review sheet: is this matrix invertible, and if not, why not.
-void App::run_invertible(std::uint8_t slot) noexcept {
-		if (slot >= kSlotCount || !slots_[slot].is_set())
-				fail_fast("slot not set");
-
-		const matrix_core::MatrixView a = slots_[slot].view_active();
-		// a non square matrix has no inverse at all: that is the answer
-		// the exercise asks for, not an error
-		if (a.rows != a.cols) {
-				REQUIRE(pop(), "pop failed (invertible)");
-				expl_ = {};
-				Page p = Page::make_result_scalar(OperationId::Invertible, slot, 0, false, 0, 1);
-				p.u.result.i = 2; // not square
-				REQUIRE(push(p), "push invertible result failed");
-				return;
-		}
-
-		matrix_core::ArenaScope tx(persist_);
-		matrix_core::ArenaScratchScope scratch_tx(scratch_);
-
-		matrix_core::ExplainOptions opts_steps;
-		opts_steps.enable = true;
-		opts_steps.persist = &persist_;
-
-		matrix_core::Explanation expl;
-		matrix_core::Rational v = matrix_core::Rational::from_int(0);
-		const matrix_core::Error err = matrix_core::op_det(a, scratch_, &v, &expl, opts_steps);
-		if (!matrix_core::is_ok(err)) {
-				show_message("common.error"_tx);
-				return;
-		}
-
-		tx.commit();
-		expl_ = std::move(expl);
-		persist_tail_mark_ = persist_.mark();
-		REQUIRE(pop(), "pop failed (invertible)");
-
-		// `num`/`den` carry the determinant, `i` says why when the answer is no
-		Page p = Page::make_result_scalar(OperationId::Invertible, slot, 0, expl_.available(), v.num(), v.den());
-		p.u.result.i = v.is_zero() ? 1u : 0u;
-		REQUIRE(push(p), "push invertible result failed");
-}
-
-// Q5 and Q6: read onto and one to one off the RREF of the standard matrix.
-void App::run_transformation(std::uint8_t slot) noexcept {
-		if (slot >= kSlotCount || !slots_[slot].is_set())
-				fail_fast("slot not set");
-
-		const matrix_core::MatrixView a = slots_[slot].view_active();
-		matrix_core::ArenaScope tx(persist_);
-		matrix_core::ArenaScratchScope scratch_tx(scratch_);
-
-		matrix_core::ExplainOptions opts_steps;
-		opts_steps.enable = true;
-		opts_steps.persist = &persist_;
-		matrix_core::Explanation expl;
-
-		matrix_core::MatrixMutView rref{};
-		matrix_core::DependencyInfo info{};
-		const matrix_core::Error err = matrix_core::op_dependency(
-		        a, persist_, &rref, &info, &expl, opts_steps, dependency_labels(), matrix_core::DependencyPurpose::Transformation);
-		if (!matrix_core::is_ok(err)) {
-				show_message(err.code == matrix_core::ErrorCode::Overflow ? "common.out_of_memory"_tx : "common.error"_tx);
-				return;
-		}
-
-		tx.commit();
-		expl_ = std::move(expl);
-		persist_tail_mark_ = persist_.mark();
-		REQUIRE(pop(), "pop failed (transformation)");
-
-		// onto is rank == rows, one to one is rank == cols
-		Page p = Page::make_result_scalar(
-		        OperationId::Transformation, slot, 0, expl_.available(), info.spans ? 1 : 0, info.independent ? 1 : 0);
-		p.u.result.rows = a.rows;
-		p.u.result.cols = a.cols;
-		p.u.result.i = info.rank;
-		REQUIRE(push(p), "push transformation result failed");
-}
-
 void App::update_slot_pick(SlotPickState& s) noexcept {
 		// back
 		if (input_.pressed(kKbGroup6, kb_Clear)) {
@@ -212,868 +127,55 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 		        (unsigned)persist_.used(),
 		        (unsigned)persist_.capacity());
 
-#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
-		if (s.op == OperationId::Basis) {
-				run_basis(sel);
-				return;
-		}
-#endif
-
-#if MATRIX_SHELL_BASIS_ONLY
-		// MatrixBasis offers no other operation. Compiling the rest of the
-		// dispatch out lets LTO drop every other core op from the program.
-		fail_fast("update_slot_pick: unexpected op in the basis only build");
-#else
-		// steps are enabled per operation below when supported
-
-		if (!op_is_binary(s.op)) {
-				const matrix_core::MatrixView a = slots_[sel].view_active();
-				SHELL_DBG("[pick] unary op=%s sel=%c\n", op_name(s.op), (char)('A' + sel));
-				dbg_print_matrix("A", a);
-
-#if !MATRIX_SHELL_ENABLE_MINOR_MATRIX
-				if (s.op == OperationId::MinorMatrix) {
-						show_message("common.disabled_build_short"_tx);
-						return;
-				}
-#endif
-#if !MATRIX_SHELL_ENABLE_COFACTOR
-				if (s.op == OperationId::CofactorElement) {
-						show_message("common.disabled_build_short"_tx);
-						return;
-				}
-#endif
-#if !MATRIX_SHELL_ENABLE_LU
-				if (s.op == OperationId::LuFactor) {
-						show_message("common.disabled_build_short"_tx);
-						return;
-				}
-#endif
-
-#if MATRIX_SHELL_ENABLE_MINOR_MATRIX && MATRIX_CORE_ENABLE_MINOR_MATRIX
-				if (s.op == OperationId::MinorMatrix) {
-						if (a.rows != a.cols) {
-								fmt_buf_[0] = '\0';
-								matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-								w.append("msg.requires_square_prefix"_tx);
-								w.put(static_cast<char>('A' + sel));
-								w.append("=");
-								w.append_u64(a.rows);
-								w.put('x');
-								w.append_u64(a.cols);
-								show_message(fmt_buf_);
-								return;
-						}
-						if (a.rows <= 1) {
-								show_message("msg.need_n_ge_2"_tx);
-								return;
-						}
-
-						matrix_core::ArenaScope tx(persist_);
-						matrix_core::MatrixMutView out{};
-						const matrix_core::ErrorCode ec = matrix_core::matrix_alloc(persist_, a.rows, a.cols, &out);
-						if (!matrix_core::is_ok(ec)) {
-								SHELL_DBG("[op] minor matrix alloc failed ec=%u used=%u/%u\n",
-								        (unsigned)ec,
-								        (unsigned)persist_.used(),
-								        (unsigned)persist_.capacity());
-								show_message("common.out_of_memory"_tx);
-								return;
-						}
-
-						matrix_core::ArenaScratchScope scratch_tx(scratch_);
-						const matrix_core::Error err = matrix_core::op_minor_matrix(a, scratch_, out);
-						SHELL_DBG("[op] minor matrix err=%u a=%ux%u\n", (unsigned)err.code, (unsigned)err.a.rows, (unsigned)err.a.cols);
-						if (!matrix_core::is_ok(err)) {
-								if (err.code == matrix_core::ErrorCode::NotSquare || err.code == matrix_core::ErrorCode::InvalidDimension ||
-								        err.code == matrix_core::ErrorCode::Internal) {
-										fail_fast("update_slot_pick: minor matrix returned unexpected error");
-								}
-								show_message("common.error"_tx);
-								return;
-						}
-
-						tx.commit();
-						expl_ = {};
-						REQUIRE(pop(), "pop failed (minor matrix)");
-						REQUIRE(push(Page::make_result_matrix(
-						                OperationId::MinorMatrix, sel, 0, false, out.rows, out.cols, out.stride, out.data)),
-						        "push minor matrix result failed");
-						return;
-				}
-#endif
-
-#if MATRIX_SHELL_ENABLE_COFACTOR && MATRIX_CORE_ENABLE_COFACTOR
-				if (s.op == OperationId::CofactorElement) {
-						if (a.rows != a.cols) {
-								fmt_buf_[0] = '\0';
-								matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-								w.append("msg.requires_square_prefix"_tx);
-								w.put(static_cast<char>('A' + sel));
-								w.append("=");
-								w.append_u64(a.rows);
-								w.put('x');
-								w.append_u64(a.cols);
-								show_message(fmt_buf_);
-								return;
-						}
-
-						REQUIRE(push(Page::make_cofactor_element(sel, a.rows)), "push cofactor element page failed");
-						return;
-				}
-#endif
-
-#if MATRIX_SHELL_ENABLE_TRANSPOSE && MATRIX_CORE_ENABLE_TRANSPOSE
-				if (s.op == OperationId::Transpose) {
-						matrix_core::ArenaScope tx(persist_);
-						matrix_core::MatrixMutView out{};
-						const matrix_core::ErrorCode ec = matrix_core::matrix_alloc(persist_, a.cols, a.rows, &out);
-						if (!matrix_core::is_ok(ec)) {
-								SHELL_DBG("[op] transpose alloc failed ec=%u used=%u/%u\n",
-								        (unsigned)ec,
-								        (unsigned)persist_.used(),
-								        (unsigned)persist_.capacity());
-								show_message("common.out_of_memory"_tx);
-								return;
-						}
-
-						matrix_core::ExplainOptions opts_steps;
-						opts_steps.enable = true;
-						opts_steps.persist = &persist_;
-
-						matrix_core::Explanation expl;
-						const matrix_core::Error err = matrix_core::op_transpose(a, out, &expl, opts_steps);
-						SHELL_DBG("[op] transpose err=%u a=%ux%u\n", (unsigned)err.code, (unsigned)err.a.rows, (unsigned)err.a.cols);
-						if (!matrix_core::is_ok(err)) {
-								if (err.code == matrix_core::ErrorCode::Overflow) {
-										show_message("common.out_of_memory"_tx);
-										return;
-								}
-								fail_fast("update_slot_pick: transpose returned unexpected error");
-						}
-
-						tx.commit();
-						expl_ = std::move(expl);
-						REQUIRE(pop(), "pop failed (transpose)");
-						REQUIRE(push(Page::make_result_matrix(
-						                OperationId::Transpose, sel, 0, expl_.available(), out.rows, out.cols, out.stride, out.data)),
-						        "push transpose result failed");
-						return;
-				}
-#endif
-
-				if (s.op == OperationId::Det) {
-						matrix_core::ArenaScope tx(persist_);
-						matrix_core::ArenaScratchScope scratch_tx(scratch_);
-
-						matrix_core::ExplainOptions opts_steps;
-						opts_steps.enable = true;
-						opts_steps.persist = &persist_;
-
-						matrix_core::Explanation expl;
-						matrix_core::Rational v = matrix_core::Rational::from_int(0);
-						const matrix_core::Error err = matrix_core::op_det(a, scratch_, &v, &expl, opts_steps);
-						SHELL_DBG("[op] det err=%u a=%ux%u value=", (unsigned)err.code, (unsigned)err.a.rows, (unsigned)err.a.cols);
-						dbg_print_rational(v);
-						SHELL_DBG("\n");
-						if (!matrix_core::is_ok(err)) {
-								if (err.code == matrix_core::ErrorCode::NotSquare) {
-										fmt_buf_[0] = '\0';
-										matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-										w.append("msg.det_requires_square_prefix"_tx);
-										w.put(static_cast<char>('A' + sel));
-										w.append("=");
-										w.append_u64(a.rows);
-										w.put('x');
-										w.append_u64(a.cols);
-										show_message(fmt_buf_);
-								} else
-										show_message("common.error"_tx);
-								return;
-						}
-
-						tx.commit();
-						REQUIRE(pop(), "pop failed (det)");
-						expl_ = std::move(expl);
-						REQUIRE(push(Page::make_result_scalar(OperationId::Det, sel, 0, expl_.available(), v.num(), v.den())),
-						        "push det result failed");
-						return;
-				}
-
-#if MATRIX_SHELL_ENABLE_INVERSE && MATRIX_CORE_ENABLE_INVERSE
-				if (s.op == OperationId::Inverse) {
-						if (a.rows != a.cols) {
-								fmt_buf_[0] = '\0';
-								matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-								w.append("msg.inverse_requires_square_prefix"_tx);
-								w.put(static_cast<char>('A' + sel));
-								w.append("=");
-								w.append_u64(a.rows);
-								w.put('x');
-								w.append_u64(a.cols);
-								show_message(fmt_buf_);
-								return;
-						}
-
-						matrix_core::ArenaScratchScope scratch_tx(scratch_);
-
-						const std::uint8_t n = a.rows;
-						matrix_core::ArenaScope tx(persist_);
-						matrix_core::MatrixMutView outm{};
-						const matrix_core::ErrorCode ec = matrix_core::matrix_alloc(persist_, n, n, &outm);
-						if (!matrix_core::is_ok(ec)) {
-								show_message("common.out_of_memory"_tx);
-								return;
-						}
-
-						matrix_core::ExplainOptions opts_steps;
-						opts_steps.enable = true;
-						opts_steps.persist = &persist_;
-
-						matrix_core::Explanation expl;
-						const matrix_core::Error err = matrix_core::op_inverse(a, scratch_, outm, &expl, opts_steps);
-						SHELL_DBG("[op] inverse err=%u a=%ux%u\n", (unsigned)err.code, (unsigned)err.a.rows, (unsigned)err.a.cols);
-						if (!matrix_core::is_ok(err)) {
-								if (err.code == matrix_core::ErrorCode::Singular) {
-										show_message("msg.singular_no_inverse"_tx);
-								} else if (err.code == matrix_core::ErrorCode::NotSquare ||
-								           err.code == matrix_core::ErrorCode::DimensionMismatch ||
-								           err.code == matrix_core::ErrorCode::Internal) {
-										fail_fast("update_slot_pick: inverse returned unexpected error");
-								} else {
-										show_message("common.error"_tx);
-								}
-								return;
-						}
-
-						tx.commit();
-						expl_ = std::move(expl);
-						REQUIRE(pop(), "pop failed (inverse)");
-						REQUIRE(push(Page::make_result_matrix(
-						                s.op, sel, 0, expl_.available(), outm.rows, outm.cols, outm.stride, outm.data)),
-						        "push inverse result failed");
-						return;
-				}
-#endif
-
-				if (s.op == OperationId::Invertible) {
-						run_invertible(sel);
-						return;
-				}
-
-				if (s.op == OperationId::Transformation) {
-						run_transformation(sel);
-						return;
-				}
-
-				if (s.op == OperationId::IndepTest) {
-						matrix_core::ArenaScope tx(persist_);
-						matrix_core::ArenaScratchScope scratch_tx(scratch_);
-
-						matrix_core::ExplainOptions opts_steps;
-						opts_steps.enable = true;
-						opts_steps.persist = &persist_;
-						matrix_core::Explanation expl;
-
-						matrix_core::MatrixMutView rref{};
-						matrix_core::DependencyInfo info{};
-						const matrix_core::Error err =
-						        matrix_core::op_dependency(a, persist_, &rref, &info, &expl, opts_steps, dependency_labels());
-						if (!matrix_core::is_ok(err)) {
-								show_message(err.code == matrix_core::ErrorCode::Overflow ? "common.out_of_memory"_tx : "common.error"_tx);
-								return;
-						}
-
-						tx.commit();
-						expl_ = std::move(expl);
-						persist_tail_mark_ = persist_.mark();
-						REQUIRE(pop(), "pop failed (indep)");
-
-						Page p = Page::make_result_scalar(s.op, sel, 0, expl_.available(), info.independent ? 1 : 0, 1);
-						p.u.result.rows = a.rows;
-						p.u.result.cols = a.cols;
-						p.u.result.i = info.rank;
-						// `j` is the first dependent column, 0xFF when the vectors are independent
-						p.u.result.j = info.independent ? 0xFFu : info.dependent_cols[0];
-						// `num` is the boolean (YES/NO) and `den` stores the pivot mask
-						p.u.result.num = info.independent ? 1 : 0;
-						p.u.result.den = static_cast<std::int64_t>(info.pivot_mask);
-						// the RREF backs the dependency relation drawn on the result page
-						p.u.result.stride = rref.stride;
-						p.u.result.data = rref.data;
-						REQUIRE(push(p), "push indep result failed");
-						return;
-				}
-
-				if (s.op == OperationId::SpanTest) {
-						matrix_core::ArenaScope tx(persist_);
-						matrix_core::ArenaScratchScope scratch_tx(scratch_);
-
-						matrix_core::ExplainOptions opts_steps;
-						opts_steps.enable = true;
-						opts_steps.persist = &persist_;
-						matrix_core::Explanation expl;
-
-						matrix_core::MatrixMutView rref{};
-						const matrix_core::ErrorCode ec_r = matrix_core::matrix_alloc(scratch_, a.rows, a.cols, &rref);
-						if (!matrix_core::is_ok(ec_r)) {
-								show_message("common.out_of_memory"_tx);
-								return;
-						}
-
-						const matrix_core::Error err = matrix_core::op_echelon(a, matrix_core::EchelonKind::Rref, rref, &expl, opts_steps);
-						if (!matrix_core::is_ok(err)) {
-								show_message("common.error"_tx);
-								return;
-						}
-
-						matrix_core::SpaceInfo info{};
-						const matrix_core::ErrorCode ec_p = matrix_core::space_info_from_rref(rref.view(), a.cols, &info);
-						if (!matrix_core::is_ok(ec_p)) {
-								show_message("common.error"_tx);
-								return;
-						}
-						const std::uint32_t piv_mask = info.pivot_mask;
-
-						const bool ok = (info.rank == a.rows);
-
-						tx.commit();
-						expl_ = std::move(expl);
-						REQUIRE(pop(), "pop failed (span)");
-
-						Page p = Page::make_result_scalar(s.op, sel, 0, expl_.available(), ok ? 1 : 0, 1);
-						p.u.result.rows = a.rows;
-						p.u.result.cols = a.cols;
-						p.u.result.i = info.rank; // rank
-						p.u.result.j = 0;
-						// For the span test, `num` is the boolean (YES/NO) and `den` stores the pivot mask.
-						p.u.result.num = ok ? 1 : 0;
-						p.u.result.den = static_cast<std::int64_t>(piv_mask);
-						REQUIRE(push(p), "push span result failed");
-						return;
-				}
-
-#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
-				if (s.op == OperationId::ColSpaceBasis || s.op == OperationId::RowSpaceBasis || s.op == OperationId::NullSpaceBasis ||
-				        s.op == OperationId::LeftNullSpaceBasis) {
-						matrix_core::ArenaScope tx(persist_);
-						matrix_core::ArenaScratchScope scratch_tx(scratch_);
-
-						matrix_core::ExplainOptions opts_steps;
-						opts_steps.enable = true;
-						opts_steps.persist = &persist_;
-						matrix_core::Explanation expl;
-
-						matrix_core::MatrixView input = a;
-						matrix_core::MatrixMutView at_owned{};
-						if (s.op == OperationId::LeftNullSpaceBasis) {
-								// Keep A^T alive for the step renderer.
-								const matrix_core::ErrorCode ec_t = matrix_core::matrix_alloc(persist_, a.cols, a.rows, &at_owned);
-								if (!matrix_core::is_ok(ec_t)) {
-										show_message("common.out_of_memory"_tx);
-										return;
-								}
-								const matrix_core::ErrorCode ec_tt = matrix_core::matrix_transpose(a, at_owned);
-								if (!matrix_core::is_ok(ec_tt)) {
-										show_message("common.error"_tx);
-										return;
-								}
-								input = at_owned.view();
-						}
-
-						matrix_core::MatrixMutView rref{};
-						const matrix_core::ErrorCode ec_r = matrix_core::matrix_alloc(scratch_, input.rows, input.cols, &rref);
-						if (!matrix_core::is_ok(ec_r)) {
-								show_message("common.out_of_memory"_tx);
-								return;
-						}
-
-						const matrix_core::Error err =
-						        matrix_core::op_echelon(input, matrix_core::EchelonKind::Rref, rref, &expl, opts_steps);
-						if (!matrix_core::is_ok(err)) {
-								show_message("common.error"_tx);
-								return;
-						}
-
-						matrix_core::SpaceInfo info{};
-						const matrix_core::ErrorCode ec_info = matrix_core::space_info_from_rref(rref.view(), input.cols, &info);
-						if (!matrix_core::is_ok(ec_info)) {
-								show_message("common.error"_tx);
-								return;
-						}
-						const std::uint32_t piv_mask = info.pivot_mask;
-						const std::uint8_t nullity = info.nullity;
-
-						matrix_core::MatrixMutView out{};
-						if (s.op == OperationId::ColSpaceBasis) {
-								const matrix_core::ErrorCode ec_o = matrix_core::space_col_basis(a, info, persist_, &out);
-								if (!matrix_core::is_ok(ec_o)) {
-										show_message("common.out_of_memory"_tx);
-										return;
-								}
-						} else if (s.op == OperationId::RowSpaceBasis) {
-								const matrix_core::ErrorCode ec_o =
-								        matrix_core::space_row_basis(rref.view(), input.cols, info, persist_, &out);
-								if (!matrix_core::is_ok(ec_o)) {
-										show_message("common.out_of_memory"_tx);
-										return;
-								}
-						} else {
-								// Null(A) or Null(A^T)
-								const std::uint8_t var_cols = input.cols;
-								const matrix_core::ErrorCode ec_o =
-								        matrix_core::space_null_basis(rref.view(), var_cols, info, persist_, &out);
-								if (!matrix_core::is_ok(ec_o)) {
-										show_message("common.out_of_memory"_tx);
-										return;
-								}
-						}
-
-						tx.commit();
-						expl_ = std::move(expl);
-						Page p = Page::make_result_matrix(s.op, sel, 0, expl_.available(), out.rows, out.cols, out.stride, out.data);
-						p.u.result.i = info.rank;  // rank
-						p.u.result.j = nullity;    // nullity (in the working variable space)
-						p.u.result.num = piv_mask; // pivot mask (LSB = col 1)
-						p.u.result.den = 1;
-						REQUIRE(pop(), "pop failed (spaces)");
-						REQUIRE(push(p), "push spaces result failed");
-						return;
-				}
-#endif
-
-				if (s.op == OperationId::Ref || s.op == OperationId::Rref) {
-						matrix_core::ArenaScope tx(persist_);
-						matrix_core::MatrixMutView outm{};
-						const matrix_core::ErrorCode ec = matrix_core::matrix_alloc(persist_, a.rows, a.cols, &outm);
-						if (!matrix_core::is_ok(ec)) {
-								show_message("common.out_of_memory"_tx);
-								return;
-						}
-
-						matrix_core::Explanation expl;
-						matrix_core::ExplainOptions opts_steps;
-						opts_steps.enable = true;
-						opts_steps.persist = &persist_;
-
-						const matrix_core::EchelonKind kind =
-						        (s.op == OperationId::Ref) ? matrix_core::EchelonKind::Ref : matrix_core::EchelonKind::Rref;
-						const matrix_core::Error err = matrix_core::op_echelon(a, kind, outm, &expl, opts_steps);
-						SHELL_DBG(
-						        "[op] %s err=%u a=%ux%u\n", op_name(s.op), (unsigned)err.code, (unsigned)err.a.rows, (unsigned)err.a.cols);
-						if (!matrix_core::is_ok(err)) {
-								if (err.code == matrix_core::ErrorCode::DimensionMismatch || err.code == matrix_core::ErrorCode::Internal) {
-										fail_fast("update_slot_pick: echelon returned unexpected error");
-								}
-								show_message("common.error"_tx);
-								return;
-						}
-
-						tx.commit();
-						expl_ = std::move(expl);
-						REQUIRE(pop(), "pop failed (echelon)");
-						REQUIRE(push(Page::make_result_matrix(
-						                s.op, sel, 0, expl_.available(), outm.rows, outm.cols, outm.stride, outm.data)),
-						        "push echelon result failed");
-						return;
-				}
-
-#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
-				if (s.op == OperationId::LuFactor) {
-						run_lu_factor(sel, false);
-						return;
-				}
-#endif
-
-				fail_fast("Unhandled unary OperationId in update_slot_pick");
-		}
-
-		// Binary ops: Add/Sub/Mul.
-		if (s.stage == 0) {
+		if (op_is_binary(s.op) && s.stage == 0) {
 				SHELL_DBG("[pick] binary op=%s pick1=%c\n", op_name(s.op), (char)('A' + sel));
 				s.slot_a = sel;
 				s.stage = 1;
 				return;
 		}
 
-		const std::uint8_t a_slot = s.slot_a;
-		const std::uint8_t b_slot = sel;
+		if (op_is_binary(s.op))
+				run_operation(s.op, s.slot_a, sel);
+		else
+				run_operation(s.op, sel, 0);
+}
+
+void App::run_operation(OperationId op, std::uint8_t slot_a, std::uint8_t slot_b) noexcept {
+		SHELL_DBG("[pick] run op=%s a=%c b=%c\n", op_name(op), (char)('A' + slot_a), (char)('A' + slot_b));
+		dbg_print_matrix("A", slots_[slot_a].view_active());
+		if (op_is_binary(op))
+				dbg_print_matrix("B", slots_[slot_b].view_active());
+
+		switch (op) {
+#define MATRIX_OP_IN(id, key, binary, run, body, steps)                                                                                    \
+		case OperationId::id:                                                                                                              \
+				run(op, slot_a, slot_b);                                                                                                   \
+				return;
+#define MATRIX_OP_OUT(id, key, binary, run, body, steps)
+#include "matrix_shell/program/ops.inc"
+#undef MATRIX_OP_IN
+#undef MATRIX_OP_OUT
+		default:
+				break;
+		}
+		fail_fast("run_operation: operation not in this program");
+}
+
+// A + B, A - B and the products: allocate the result, run `fn`, and report a
+// size mismatch the way the review exercises phrase it. `product` selects the
+// m x p times p x n shape rule over the same size rule.
+void App::run_binary_matrix_op(OperationId op, std::uint8_t a_slot, std::uint8_t b_slot, bool product, BinaryMatrixOp fn) noexcept {
 		const matrix_core::MatrixView a = slots_[a_slot].view_active();
 		const matrix_core::MatrixView b = slots_[b_slot].view_active();
 
-		SHELL_DBG("[pick] binary op=%s pick2=%c (A=%c)\n", op_name(s.op), (char)('A' + b_slot), (char)('A' + a_slot));
-		dbg_print_matrix("A", a);
-		dbg_print_matrix("B", b);
-
-#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
-		if (s.op == OperationId::Dot) {
-				matrix_core::ArenaScope tx(persist_);
-				matrix_core::ArenaScratchScope scratch_tx(scratch_);
-				matrix_core::ExplainOptions opts_steps;
-				opts_steps.enable = true;
-				opts_steps.persist = &persist_;
-
-				matrix_core::Explanation expl;
-				matrix_core::Rational v = matrix_core::Rational::from_int(0);
-				const matrix_core::Error err = matrix_core::op_dot(a, b, &v, &expl, opts_steps);
-				SHELL_DBG("[op] dot err=%u a=%ux%u b=%ux%u value=",
-				        (unsigned)err.code,
-				        (unsigned)err.a.rows,
-				        (unsigned)err.a.cols,
-				        (unsigned)err.b.rows,
-				        (unsigned)err.b.cols);
-				dbg_print_rational(v);
-				SHELL_DBG("\n");
-				if (!matrix_core::is_ok(err)) {
-						if (err.code == matrix_core::ErrorCode::InvalidDimension)
-								show_message("msg.need_vectors"_tx);
-						else if (err.code == matrix_core::ErrorCode::DimensionMismatch) {
-								fmt_buf_[0] = '\0';
-								matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-								w.append("msg.need_same_length_prefix"_tx);
-								w.put(static_cast<char>('A' + a_slot));
-								w.append("=");
-								w.append_u64(a.rows);
-								w.put('x');
-								w.append_u64(a.cols);
-								w.append(", ");
-								w.put(static_cast<char>('A' + b_slot));
-								w.append("=");
-								w.append_u64(b.rows);
-								w.put('x');
-								w.append_u64(b.cols);
-								show_message(fmt_buf_);
-						} else if (err.code == matrix_core::ErrorCode::Internal) {
-								fail_fast("update_slot_pick: dot returned Internal");
-						} else
-								show_message("common.error"_tx);
-						return;
-				}
-
-				tx.commit();
-				expl_ = std::move(expl);
-				REQUIRE(pop(), "pop failed (dot)");
-				REQUIRE(push(Page::make_result_scalar(OperationId::Dot, a_slot, b_slot, expl_.available(), v.num(), v.den())),
-				        "push dot result failed");
-				return;
-		}
-#endif
-
-#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
-		if (s.op == OperationId::Cross) {
-				matrix_core::ArenaScope tx(persist_);
-				matrix_core::MatrixMutView out{};
-				const matrix_core::ErrorCode ec = matrix_core::matrix_alloc(persist_, a.rows, a.cols, &out);
-				if (!matrix_core::is_ok(ec)) {
-						SHELL_DBG("[op] cross alloc failed ec=%u used=%u/%u\n",
-						        (unsigned)ec,
-						        (unsigned)persist_.used(),
-						        (unsigned)persist_.capacity());
-						show_message("common.out_of_memory"_tx);
-						return;
-				}
-
-				matrix_core::ExplainOptions opts_steps;
-				opts_steps.enable = true;
-				opts_steps.persist = &persist_;
-
-				matrix_core::Explanation expl;
-				const matrix_core::Error err = matrix_core::op_cross(a, b, out, &expl, opts_steps);
-				SHELL_DBG("[op] cross err=%u a=%ux%u b=%ux%u out=%ux%u\n",
-				        (unsigned)err.code,
-				        (unsigned)err.a.rows,
-				        (unsigned)err.a.cols,
-				        (unsigned)err.b.rows,
-				        (unsigned)err.b.cols,
-				        (unsigned)out.rows,
-				        (unsigned)out.cols);
-				if (!matrix_core::is_ok(err)) {
-						if (err.code == matrix_core::ErrorCode::InvalidDimension)
-								show_message("msg.need_3d_vectors"_tx);
-						else if (err.code == matrix_core::ErrorCode::DimensionMismatch)
-								fail_fast("update_slot_pick: cross returned DimensionMismatch");
-						else if (err.code == matrix_core::ErrorCode::Internal)
-								fail_fast("update_slot_pick: cross returned Internal");
-						else
-								show_message("common.error"_tx);
-						return;
-				}
-
-				tx.commit();
-				expl_ = std::move(expl);
-				REQUIRE(pop(), "pop failed (cross)");
-				REQUIRE(push(Page::make_result_matrix(
-				                OperationId::Cross, a_slot, b_slot, expl_.available(), out.rows, out.cols, out.stride, out.data)),
-				        "push cross result failed");
-				return;
-		}
-#endif
-
-#if !MATRIX_SHELL_ENABLE_PROJECTION
-		if (s.op == OperationId::Projection) {
-				show_message("common.disabled_build_short"_tx);
-				return;
-		}
-#endif
-#if !MATRIX_SHELL_ENABLE_CRAMER
-		if (s.op == OperationId::Cramer) {
-				show_message("common.disabled_build_short"_tx);
-				return;
-		}
-#endif
-#if !MATRIX_SHELL_ENABLE_LU
-		if (s.op == OperationId::LuSolve) {
-				show_message("common.disabled_build_short"_tx);
-				return;
-		}
-#endif
-
-#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
-		if (s.op == OperationId::LuSolve) {
-				run_lu_solve(a_slot, b_slot, false);
-				return;
-		}
-#endif
-
-		if (s.op == OperationId::SolveRref) {
-				if (b.cols != 1 || b.rows != a.rows) {
-						show_message("msg.need_b_mx1"_tx);
-						return;
-				}
-				if (a.cols + 1 > matrix_core::kMaxCols) {
-						show_message("msg.too_many_cols"_tx);
-						return;
-				}
-
-				matrix_core::ArenaScope tx(persist_);
-				matrix_core::ArenaScratchScope scratch_tx(scratch_);
-
-				matrix_core::ExplainOptions opts_steps;
-				opts_steps.enable = true;
-				opts_steps.persist = &persist_;
-				matrix_core::Explanation expl;
-
-				matrix_core::ParametricLabels labels{};
-				labels.augmented = "solve.augmented"_tx;
-				labels.rref = "solve.rref"_tx;
-				labels.solve_pivots = "solve.solve_pivots"_tx;
-				labels.free_vars = "solve.free"_tx;
-				labels.homogeneous = "solve.homogeneous"_tx;
-				labels.complete = "solve.complete"_tx;
-				labels.inconsistent = "solve.inconsistent"_tx;
-				labels.unique = "solve.unique"_tx;
-
-				matrix_core::MatrixMutView xp{};
-				matrix_core::MatrixMutView n_basis{};
-				matrix_core::ParametricSolution info{};
-				const matrix_core::Error err =
-				        matrix_core::op_solve_parametric(a, b, persist_, scratch_, &xp, &n_basis, &info, &expl, opts_steps, labels);
-				if (!matrix_core::is_ok(err)) {
-						show_message(err.code == matrix_core::ErrorCode::Overflow ? "common.out_of_memory"_tx : "common.error"_tx);
-						return;
-				}
-
-				const std::uint8_t n = info.var_count;
-
-				// Pack the result as [x_p | v_1 .. v_k] so the grid shows the whole
-				// parametric solution at once; drop x_p when there is no room for it
-				// (that only happens when every variable is free, where x_p is zero).
-				matrix_core::MatrixMutView out{};
-				if (info.nullity == 0) {
-						out = xp;
-				} else if (info.nullity >= 6) {
-						out = n_basis;
-				} else {
-						const std::uint8_t out_cols = static_cast<std::uint8_t>(info.nullity + 1u);
-						const matrix_core::ErrorCode ec_o = matrix_core::matrix_alloc(persist_, n, out_cols, &out);
-						if (!matrix_core::is_ok(ec_o)) {
-								show_message("common.out_of_memory"_tx);
-								return;
-						}
-						for (std::uint8_t r = 0; r < n; r++) {
-								out.at_mut(r, 0) = xp.at(r, 0);
-								for (std::uint8_t c = 0; c < info.nullity; c++)
-										out.at_mut(r, static_cast<std::uint8_t>(c + 1u)) = n_basis.at(r, c);
-						}
-				}
-
-				tx.commit();
-				expl_ = std::move(expl);
-				persist_tail_mark_ = persist_.mark();
-				REQUIRE(pop(), "pop failed (solve rref)");
-				Page p = Page::make_result_matrix(s.op, a_slot, b_slot, expl_.available(), out.rows, out.cols, out.stride, out.data);
-				p.u.result.i = info.rank;
-				p.u.result.j = info.nullity;
-				p.u.result.num = static_cast<std::int64_t>(info.pivot_mask);
-				// `den` carries consistency for the result page: 0 means no solution
-				p.u.result.den = info.consistent ? 1 : 0;
-				REQUIRE(push(p), "push solve rref result failed");
-				return;
-		}
-
-#if MATRIX_SHELL_ENABLE_PROJECTION && MATRIX_CORE_ENABLE_PROJECTION
-		if (s.op == OperationId::Projection) {
-				matrix_core::ArenaScope tx(persist_);
-				matrix_core::MatrixMutView out_proj{};
-				matrix_core::MatrixMutView out_orth{};
-
-				const matrix_core::ErrorCode ec1 = matrix_core::matrix_alloc(persist_, a.rows, a.cols, &out_proj);
-				const matrix_core::ErrorCode ec2 = matrix_core::matrix_alloc(persist_, a.rows, a.cols, &out_orth);
-				if (!matrix_core::is_ok(ec1) || !matrix_core::is_ok(ec2)) {
-						SHELL_DBG("[op] proj alloc failed ec1=%u ec2=%u used=%u/%u\n",
-						        (unsigned)ec1,
-						        (unsigned)ec2,
-						        (unsigned)persist_.used(),
-						        (unsigned)persist_.capacity());
-						show_message("common.out_of_memory"_tx);
-						return;
-				}
-
-				matrix_core::ExplainOptions opts_steps;
-				opts_steps.enable = true;
-				opts_steps.persist = &persist_;
-
-				matrix_core::Explanation expl;
-				matrix_core::ProjDecomposeResult res{};
-				const matrix_core::Error err = matrix_core::op_proj_decompose_u_onto_v(a, b, out_proj, out_orth, &res, &expl, opts_steps);
-
-				SHELL_DBG("[op] proj err=%u a=%ux%u b=%ux%u k=",
-				        (unsigned)err.code,
-				        (unsigned)err.a.rows,
-				        (unsigned)err.a.cols,
-				        (unsigned)err.b.rows,
-				        (unsigned)err.b.cols);
-				dbg_print_rational(res.k);
-				SHELL_DBG("\n");
-
-				if (!matrix_core::is_ok(err)) {
-						if (err.code == matrix_core::ErrorCode::InvalidDimension)
-								show_message("msg.need_vectors"_tx);
-						else if (err.code == matrix_core::ErrorCode::DimensionMismatch) {
-								fmt_buf_[0] = '\0';
-								matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-								w.append("msg.need_same_length_prefix"_tx);
-								w.put(static_cast<char>('A' + a_slot));
-								w.append("=");
-								w.append_u64(a.rows);
-								w.put('x');
-								w.append_u64(a.cols);
-								w.append(", ");
-								w.put(static_cast<char>('A' + b_slot));
-								w.append("=");
-								w.append_u64(b.rows);
-								w.put('x');
-								w.append_u64(b.cols);
-								show_message(fmt_buf_);
-						} else if (err.code == matrix_core::ErrorCode::DivisionByZero) {
-								show_message("msg.v_zero_vector"_tx);
-						} else {
-								if (err.code == matrix_core::ErrorCode::Internal)
-										fail_fast("update_slot_pick: projection returned Internal");
-								show_message("common.error"_tx);
-						}
-						return;
-				}
-
-				tx.commit();
-				expl_ = std::move(expl);
-				persist_tail_mark_ = persist_.mark();
-				REQUIRE(pop(), "pop failed (projection)");
-				REQUIRE(push(Page::make_projection_result(a_slot,
-				                b_slot,
-				                expl_.available(),
-				                out_proj.rows,
-				                out_proj.cols,
-				                out_proj.stride,
-				                out_proj.data,
-				                out_orth.stride,
-				                out_orth.data,
-				                res.k.num(),
-				                res.k.den())),
-				        "push projection result failed");
-				return;
-		}
-#endif
-
-#if MATRIX_SHELL_ENABLE_CRAMER && MATRIX_CORE_ENABLE_CRAMER
-		if (s.op == OperationId::Cramer) {
-				if (a.rows != a.cols) {
-						fmt_buf_[0] = '\0';
-						matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-						w.append("msg.a_must_be_square_prefix"_tx);
-						w.put(static_cast<char>('A' + a_slot));
-						w.append("=");
-						w.append_u64(a.rows);
-						w.put('x');
-						w.append_u64(a.cols);
-						show_message(fmt_buf_);
-						return;
-				}
-				if (b.rows != a.rows || b.cols != 1) {
-						fmt_buf_[0] = '\0';
-						matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-						w.append("msg.need_b_nx1_prefix"_tx);
-						w.append_u64(a.rows);
-						w.put('x');
-						w.append_u64(a.cols);
-						w.append("msg.b_is_prefix"_tx);
-						w.append_u64(b.rows);
-						w.put('x');
-						w.append_u64(b.cols);
-						show_message(fmt_buf_);
-						return;
-				}
-
-				matrix_core::ArenaScope tx(persist_);
-				matrix_core::MatrixMutView x_out{};
-				const matrix_core::ErrorCode ec = matrix_core::matrix_alloc(persist_, a.rows, 1, &x_out);
-				if (!matrix_core::is_ok(ec)) {
-						SHELL_DBG("[op] cramer alloc failed ec=%u used=%u/%u\n",
-						        (unsigned)ec,
-						        (unsigned)persist_.used(),
-						        (unsigned)persist_.capacity());
-						show_message("common.out_of_memory"_tx);
-						return;
-				}
-
-				matrix_core::ArenaScratchScope scratch_tx(scratch_);
-				const matrix_core::Error err = matrix_core::op_cramer_solve(a, b, scratch_, x_out);
-				SHELL_DBG("[op] cramer err=%u a=%ux%u b=%ux%u\n",
-				        (unsigned)err.code,
-				        (unsigned)err.a.rows,
-				        (unsigned)err.a.cols,
-				        (unsigned)err.b.rows,
-				        (unsigned)err.b.cols);
-				if (!matrix_core::is_ok(err)) {
-						if (err.code == matrix_core::ErrorCode::Singular)
-								show_message("msg.no_unique_solution"_tx);
-						else if (err.code == matrix_core::ErrorCode::NotSquare || err.code == matrix_core::ErrorCode::DimensionMismatch ||
-						         err.code == matrix_core::ErrorCode::Internal)
-								fail_fast("update_slot_pick: cramer returned unexpected error");
-						else
-								show_message("common.error"_tx);
-						return;
-				}
-
-				tx.commit();
-				expl_ = {};
-				persist_tail_mark_ = persist_.mark();
-				REQUIRE(pop(), "pop failed (cramer)");
-				REQUIRE(push(Page::make_result_matrix(
-				                OperationId::Cramer, a_slot, b_slot, true, x_out.rows, x_out.cols, x_out.stride, x_out.data)),
-				        "push cramer result failed");
-				return;
-		}
-#endif
-
 		matrix_core::Dim out_dim{};
-		if (s.op == OperationId::Add || s.op == OperationId::Sub)
-				out_dim = a.dim();
-		else
+		if (product)
 				out_dim = {a.rows, b.cols};
+		else
+				out_dim = a.dim();
 
 		SHELL_DBG("[op] %s dims A=%ux%u B=%ux%u out=%ux%u\n",
-		        op_name(s.op),
+		        op_name(op),
 		        (unsigned)a.rows,
 		        (unsigned)a.cols,
 		        (unsigned)b.rows,
@@ -1099,20 +201,10 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 		matrix_core::ExplainOptions opts_steps;
 		opts_steps.enable = true;
 		opts_steps.persist = &persist_;
-		matrix_core::Error err{};
-		if (s.op == OperationId::Add)
-				err = matrix_core::op_add(a, b, out, &expl, opts_steps);
-		else if (s.op == OperationId::Sub)
-				err = matrix_core::op_sub(a, b, out, &expl, opts_steps);
-#if MATRIX_SHELL_ENABLE_COLROW && MATRIX_CORE_ENABLE_COLROW
-		else if (s.op == OperationId::MulColRow)
-				err = matrix_core::op_mul_colrow(a, b, out, &expl, opts_steps, colrow_labels());
-#endif
-		else
-				err = matrix_core::op_mul(a, b, out, &expl, opts_steps);
+		const matrix_core::Error err = fn(a, b, out, &expl, opts_steps);
 
 		SHELL_DBG("[op] %s err=%u a=%ux%u b=%ux%u\n",
-		        op_name(s.op),
+		        op_name(op),
 		        (unsigned)err.code,
 		        (unsigned)err.a.rows,
 		        (unsigned)err.a.cols,
@@ -1122,7 +214,7 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 				if (err.code == matrix_core::ErrorCode::DimensionMismatch) {
 						fmt_buf_[0] = '\0';
 						matrix_core::CheckedWriter w{fmt_buf_, sizeof(fmt_buf_)};
-						if (s.op == OperationId::Mul || s.op == OperationId::MulColRow)
+						if (product)
 								w.append("msg.inner_sizes_match_prefix"_tx);
 						else
 								w.append("msg.need_same_size_prefix"_tx);
@@ -1149,9 +241,8 @@ void App::update_slot_pick(SlotPickState& s) noexcept {
 		expl_ = std::move(expl);
 		persist_tail_mark_ = persist_.mark();
 		REQUIRE(pop(), "pop failed (binary op)");
-		REQUIRE(push(Page::make_result_matrix(s.op, a_slot, b_slot, expl_.available(), out.rows, out.cols, out.stride, out.data)),
+		REQUIRE(push(Page::make_result_matrix(op, a_slot, b_slot, expl_.available(), out.rows, out.cols, out.stride, out.data)),
 		        "push binary result failed");
-#endif // MATRIX_SHELL_BASIS_ONLY
 }
 
 } // namespace matrix_shell

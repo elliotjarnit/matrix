@@ -33,14 +33,7 @@ Page Page::make_editor(std::uint8_t slot) noexcept {
 Page Page::make_confirm(std::uint8_t slot, ConfirmAction action) noexcept {
 		Page p{};
 		p.kind = PageKind::Confirm;
-		p.u.confirm = ConfirmState{slot, 0, 0, action};
-		return p;
-}
-
-Page Page::make_confirm_lu(std::uint8_t slot_a, std::uint8_t slot_b, std::uint8_t col, ConfirmAction action) noexcept {
-		Page p{};
-		p.kind = PageKind::Confirm;
-		p.u.confirm = ConfirmState{slot_a, slot_b, col, action};
+		p.u.confirm = ConfirmState{slot, action};
 		return p;
 }
 
@@ -101,134 +94,10 @@ Page Page::make_result_scalar(
 		return p;
 }
 
-Page Page::make_projection_result(std::uint8_t slot_u,
-        std::uint8_t slot_v,
-        bool has_steps,
-        std::uint8_t rows,
-        std::uint8_t cols,
-        std::uint8_t stride_proj,
-        const matrix_core::Rational* proj_data,
-        std::uint8_t stride_orth,
-        const matrix_core::Rational* orth_data,
-        std::int64_t k_num,
-        std::int64_t k_den) noexcept {
-		Page p{};
-		p.kind = PageKind::ProjectionResult;
-		p.u.proj = ProjectionResultState{
-		        .slot_u = slot_u,
-		        .slot_v = slot_v,
-		        .mode = 0,
-		        .has_steps = has_steps,
-		        .rows = rows,
-		        .cols = cols,
-		        .stride_proj = stride_proj,
-		        .stride_orth = stride_orth,
-		        .proj_data = proj_data,
-		        .orth_data = orth_data,
-		        .k_num = k_num,
-		        .k_den = k_den,
-		};
-		return p;
-}
-
-Page Page::make_basis_result(std::uint8_t slot_a,
-        bool has_steps,
-        std::uint8_t rows,
-        std::uint8_t cols,
-        std::uint8_t rank,
-        std::uint8_t nullity,
-        std::uint8_t pivot_mask,
-        std::uint8_t stride_col,
-        const matrix_core::Rational* col_data,
-        std::uint8_t stride_nul,
-        const matrix_core::Rational* nul_data) noexcept {
-		Page p{};
-		p.kind = PageKind::BasisResult;
-		p.u.basis = BasisResultState{
-		        .slot_a = slot_a,
-		        .mode = 0,
-		        .has_steps = has_steps,
-		        .rows = rows,
-		        .cols = cols,
-		        .rank = rank,
-		        .nullity = nullity,
-		        .pivot_mask = pivot_mask,
-		        .stride_col = stride_col,
-		        .stride_nul = stride_nul,
-		        .col_data = col_data,
-		        .nul_data = nul_data,
-		};
-		return p;
-}
-
-Page Page::make_lu_result(std::uint8_t slot_a,
-        bool has_steps,
-        std::uint8_t rows,
-        std::uint8_t u_cols,
-        std::uint8_t stride_l,
-        const matrix_core::Rational* l_data,
-        std::uint8_t stride_u,
-        const matrix_core::Rational* u_data,
-        std::uint8_t stride_p,
-        const matrix_core::Rational* p_data) noexcept {
-		Page p{};
-		p.kind = PageKind::LuResult;
-		p.u.lu = LuResultState{
-		        .slot_a = slot_a,
-		        .mode = 0,
-		        .has_steps = has_steps,
-		        .rows = rows,
-		        .u_cols = u_cols,
-		        .stride_l = stride_l,
-		        .stride_u = stride_u,
-		        .stride_p = stride_p,
-		        .l_data = l_data,
-		        .u_data = u_data,
-		        .p_data = p_data,
-		};
-		return p;
-}
-
-Page Page::make_cramer_steps_menu(std::uint8_t slot_a, std::uint8_t slot_b, std::uint8_t n) noexcept {
-		Page p{};
-		p.kind = PageKind::CramerStepsMenu;
-		p.u.cramer_steps = CramerStepsMenuState{slot_a, slot_b, n, 0, 0};
-		return p;
-}
-
 Page Page::make_steps() noexcept {
 		Page p{};
 		p.kind = PageKind::Steps;
 		p.u.steps = StepsState{0};
-		return p;
-}
-
-Page Page::make_cofactor_element(std::uint8_t slot, std::uint8_t n) noexcept {
-		Page p{};
-		p.kind = PageKind::CofactorElement;
-		p.u.cofactor = CofactorElementState{slot, n, 0, 0, 0};
-		return p;
-}
-
-Page Page::make_result_cofactor_element(
-        std::uint8_t slot_a, std::uint8_t i, std::uint8_t j, bool has_steps, std::int64_t num, std::int64_t den) noexcept {
-		Page p{};
-		p.kind = PageKind::Result;
-		ResultState r;
-		r.op = OperationId::CofactorElement;
-		r.slot_a = slot_a;
-		r.slot_b = 0;
-		r.is_scalar = true;
-		r.has_steps = has_steps;
-		r.rows = 0;
-		r.cols = 0;
-		r.stride = 0;
-		r.data = nullptr;
-		r.i = i;
-		r.j = j;
-		r.num = num;
-		r.den = den;
-		p.u.result = r;
 		return p;
 }
 

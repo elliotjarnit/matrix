@@ -1,6 +1,8 @@
 #include "matrix_shell/detail/app_internal.hpp"
 #include "matrix_shell/text.hpp"
 
+#include "matrix_core/writer.hpp"
+
 #include <cassert>
 #include <cstdlib>
 
@@ -60,119 +62,18 @@ namespace {
 struct OpMeta {
 		TextId name = TextId::None;
 		bool binary = false;
-		bool enabled = false;
+		bool enabled = false; // compiled into this program
 };
 
+// one row per OperationId; an operation whose module the program leaves out
+// keeps its slot but has no name, so its strings are not compiled in
 constexpr OpMeta kOpMeta[] = {
-        /* Add */ {"op.add"_tid, true, true},
-        /* Sub */ {"op.sub"_tid, true, true},
-        /* Mul */ {"op.mul"_tid, true, true},
-/* Dot */
-#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
-        {"op.dot"_tid, true, true},
-#else
-        {TextId::None, true, false},
-#endif
-/* Cross */
-#if MATRIX_SHELL_ENABLE_VECTOR_OPS && MATRIX_CORE_ENABLE_VECTOR_OPS
-        {"op.cross"_tid, true, true},
-#else
-        {TextId::None, true, false},
-#endif
-/* Projection */
-#if MATRIX_SHELL_ENABLE_PROJECTION && MATRIX_CORE_ENABLE_PROJECTION
-        {"op.projection"_tid, true, true},
-#else
-        {TextId::None, false, false},
-#endif
-/* Cramer */
-#if MATRIX_SHELL_ENABLE_CRAMER && MATRIX_CORE_ENABLE_CRAMER
-        {"op.cramer"_tid, true, true},
-#else
-        {TextId::None, false, false},
-#endif
-        /* Det */ {"op.det"_tid, false, true},
-        /* SolveRref */ {"op.solve_rref"_tid, true, true},
-        /* SpanTest */ {"op.span_test"_tid, false, true},
-        /* IndepTest */ {"op.indep_test"_tid, false, true},
-/* Transpose */
-#if MATRIX_SHELL_ENABLE_TRANSPOSE && MATRIX_CORE_ENABLE_TRANSPOSE
-        {"op.transpose"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
-/* Inverse */
-#if MATRIX_SHELL_ENABLE_INVERSE && MATRIX_CORE_ENABLE_INVERSE
-        {"op.inverse"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
-/* ColSpaceBasis */
-#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
-        {"op.col_basis"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
-/* RowSpaceBasis */
-#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
-        {"op.row_basis"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
-/* NullSpaceBasis */
-#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
-        {"op.null_basis"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
-/* LeftNullSpaceBasis */
-#if MATRIX_SHELL_ENABLE_SPACE_BASES && MATRIX_CORE_ENABLE_SPACE_BASES
-        {"op.left_null_basis"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
-/* MinorMatrix */
-#if MATRIX_SHELL_ENABLE_MINOR_MATRIX && MATRIX_CORE_ENABLE_MINOR_MATRIX
-        {"op.minor_matrix"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
-/* CofactorElement */
-#if MATRIX_SHELL_ENABLE_COFACTOR && MATRIX_CORE_ENABLE_COFACTOR
-        {"op.cofactor"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
-        /* Ref */ {"op.ref"_tid, false, true},
-        /* Rref */ {"op.rref"_tid, false, true},
-/* LuFactor */
-#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
-        {"op.lu_factor"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
-/* LuSolve */
-#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
-        {"op.lu_solve"_tid, true, true},
-#else
-        {TextId::None, true, false},
-#endif
-        /* Invertible */ {"op.invertible"_tid, false, true},
-        /* Transformation */ {"op.transformation"_tid, false, true},
-/* MulColRow */
-#if MATRIX_SHELL_ENABLE_COLROW && MATRIX_CORE_ENABLE_COLROW
-        {"op.mul_colrow"_tid, true, true},
-#else
-        {TextId::None, true, false},
-#endif
-/* Basis */
-#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
-        {"op.basis"_tid, false, true},
-#else
-        {TextId::None, false, false},
-#endif
+#define MATRIX_OP_IN(id, key, binary, run, body, steps) {key##_tid, binary, true},
+#define MATRIX_OP_OUT(id, key, binary, run, body, steps) {TextId::None, binary, false},
+#include "matrix_shell/program/ops.inc"
+#undef MATRIX_OP_IN
+#undef MATRIX_OP_OUT
 };
-static_assert(sizeof(kOpMeta) / sizeof(kOpMeta[0]) == static_cast<std::size_t>(OperationId::Basis) + 1u, "Update kOpMeta");
 
 const OpMeta& op_meta(OperationId op) noexcept {
 		const std::size_t idx = static_cast<std::size_t>(op);
@@ -192,66 +93,28 @@ bool op_enabled(OperationId op) noexcept {
 
 const char* op_name(OperationId op) noexcept {
 		const OpMeta& meta = op_meta(op);
-		return meta.enabled ? tr(meta.name) : "common.disabled"_tx;
+		if (!meta.enabled)
+				fail_fast("op_name: operation not in this program");
+		return tr(meta.name);
 }
 
-matrix_core::DependencyLabels dependency_labels() noexcept {
-		matrix_core::DependencyLabels labels{};
-		labels.vectors = "dep.vectors"_tx;
-		labels.rref = "dep.rref"_tx;
-		labels.independent = "dep.independent"_tx;
-		labels.dependent = "dep.dependent"_tx;
-		labels.vectors_word = "dep.vectors_word"_tx;
-		labels.rank_word = "dep.rank_word"_tx;
-		labels.relation = "dep.relation"_tx;
-		labels.onto = "dep.onto"_tx;
-		labels.not_onto = "dep.not_onto"_tx;
-		labels.one_to_one = "dep.one_to_one"_tx;
-		labels.not_one_to_one = "dep.not_one_to_one"_tx;
-		labels.rows_word = "dep.rows_word"_tx;
-		labels.cols_word = "dep.cols_word"_tx;
-		return labels;
-}
-
-#if MATRIX_SHELL_ENABLE_COLROW && MATRIX_CORE_ENABLE_COLROW
-matrix_core::ColRowLabels colrow_labels() noexcept {
-		matrix_core::ColRowLabels labels{};
-		labels.intro = "colrow.intro"_tx;
-		labels.term = "colrow.term"_tx;
-		labels.sum = "colrow.sum"_tx;
-		return labels;
-}
-#endif
-
-#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
-matrix_core::BasisLabels basis_labels() noexcept {
-		matrix_core::BasisLabels labels{};
-		labels.col_def = "basis.col_def"_tx;
-		labels.nul_def = "basis.nul_def"_tx;
-		labels.rref = "basis.rref"_tx;
-		labels.pivots = "basis.pivots"_tx;
-		labels.col_basis = "basis.col_basis"_tx;
-		labels.nul_solve = "basis.nul_solve"_tx;
-		labels.nul_vector = "basis.nul_vector"_tx;
-		labels.nul_basis = "basis.nul_basis"_tx;
-		labels.rank_theorem = "basis.rank_theorem"_tx;
-		labels.free_word = "basis.free"_tx;
-		return labels;
-}
-#endif
-
-matrix_core::LuLabels lu_labels() noexcept {
-		matrix_core::LuLabels labels{};
-		labels.skip_column = "lu.skip_column"_tx;
-		labels.check = "lu.check"_tx;
-		labels.forward = "lu.forward"_tx;
-		labels.back = "lu.back"_tx;
-		labels.inconsistent = "lu.inconsistent"_tx;
-		labels.particular = "lu.particular"_tx;
-		labels.homogeneous = "lu.homogeneous"_tx;
-		labels.summary = "lu.summary"_tx;
-		labels.swap_rows = "lu.swap_rows"_tx;
-		return labels;
+// "1 3": the 1 based columns whose bit is set in `mask`, or "-" when none is
+void render_pivot_cols(std::uint32_t mask, char* buf, std::size_t cap) noexcept {
+		if (!buf || cap == 0)
+				return;
+		buf[0] = '\0';
+		matrix_core::CheckedWriter w{buf, cap};
+		bool first = true;
+		for (std::uint8_t i = 0; i < 7; i++) {
+				if ((mask & (1u << i)) == 0)
+						continue;
+				if (!first)
+						w.put(' ');
+				w.append_u64(static_cast<std::uint64_t>(i + 1u));
+				first = false;
+		}
+		if (first)
+				w.append("-");
 }
 
 void dbg_print_i64(std::int64_t v) noexcept {

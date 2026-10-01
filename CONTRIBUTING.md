@@ -2,11 +2,15 @@
 
 ## Technical Overview
 
-Matrix is split into two layers:
+The repository builds several calculator programs out of shared parts:
 
-- **matrix_core**: a platform agnostic C++20 library that provides exact rational matrix arithmetic, 21 operations, and a type erased on demand explanation system. it has zero heap allocations during operation (everything runs on a preallocated arena). fully tested with native sanitizer builds (ASan, UBSan, LSan)
+- **`core/`** (matrix_core): the platform agnostic C++20 math engine: exact rational matrix arithmetic, row reduction, determinants, subspace helpers, and a type erased on demand explanation system. it has zero heap allocations during operation (everything runs on a preallocated arena). fully tested with native sanitizer builds (ASan, UBSan, LSan)
 
-- **matrix_shell**: the TI-84+ CE front end. A page stack state machine drives the UI using the CEs graphics library, keyboard library, and font library. LaTeX rendering is handled by the bundled **libtexce** engine
+- **`shell/`** (matrix_shell): the TI-84+ CE front end every program shares: the page stack, the slot editor, the menu tree, the slot picker, and the result and steps pages. It uses the CEs graphics library, keyboard library, and font library. LaTeX rendering is handled by the bundled **libtexce** engine
+
+- **`modules/<name>/`**: one feature each (LU, Col(A) & Nul(A), Cramer's rule, ...), holding everything that feature needs: its core operation, its screens, the operations it puts in the menus, its strings and its tests
+
+- **`programs/<name>/`**: a calculator program is a name plus a list of modules. See [Modules and Programs](#modules-and-programs)
 
 ### Memory Architecture
 
@@ -32,7 +36,7 @@ There are **zero heap allocations** during normal operation — the single `mall
 - **View/handle pattern** for matrices: a `MatrixView` is just a pointer + dimensions (~24 bytes). Backing storage (`Rational[36]` = 576 bytes per slot) lives in the arena. Copying a matrix copies metadata, not data
 - **Exact Rational type**: 64 bit numerator and denominator, auto reduced to lowest terms. No floating point anywhere in the math pipeline
 - **On demand step generation**: explanation objects are type erased closures. the shell calls `render_step(i)` only when the user navigates to step *i*. only one steps LaTeX is in memory at a time
-- **Compile time feature flags**: optional operations (Cramer, cofactor, minor matrix, projection) can be toggled off to reduce binary size for the CE
+- **Programs built from modules**: a program compiles only the modules it lists, so a small program (say, for one exam) carries only the code and strings it needs
 
 
 ## Building from Source
@@ -53,14 +57,27 @@ cmake --build --preset native
 
 This builds the core library and all test executables with strict warnings (`-Werror`) enabled
 
-### TI84 CE Build (produces the .8xp program)
+### TI84 CE Build (produces the .8xp programs)
 
 ```bash
-cmake --preset ce
+cmake --preset ce -DCEDEV_ROOT=/path/to/CEdev
 cmake --build --preset ce
 ```
 
-The output `MATRIX.8xp` is located in `build/ce/matrix_shell/bin/`.
+One configure builds every program in `programs/`, each to
+`build/ce/<program>/bin/<TI name>.8xp` (French builds go to `<program>_fr`). To
+build only some of them, set `MATRIX_CE_PROGRAMS`, or build one target:
+
+```bash
+cmake --preset ce -DMATRIX_CE_PROGRAMS="matlite;matbasis"
+cmake --build build/ce --target matbasis
+```
+
+`MATRIX_CE_LANGS` picks the languages (`en`, `fr`, or `en;fr`). The presets:
+`ce` (every program, English), `ce-release-fr` (French), `ce-debug` /
+`ce-debug-fr` (shell debug logging and the CEmu debug console), and
+`ce-release-dual-lang`, which is what the release workflows build: MatrixLite
+in both languages.
 
 ### Sanitizer Builds
 
@@ -76,63 +93,106 @@ cmake --preset native-lsan && cmake --build --preset native-lsan
 cmake --preset native-coverage && cmake --build --preset native-coverage
 ```
 
-### Feature Flags
+## Modules and Programs
 
-Optional operations can be toggled at configure time to reduce binary size:
+### Programs
 
-| Flag | Default (native) | Default (CE) | Description |
-|---|---|---|---|
-| `MATRIX_FEATURE_PROJECTION` | ON | OFF | Vector projection decomposition |
-| `MATRIX_FEATURE_MINOR_MATRIX` | ON | OFF | Full matrix of minors |
-| `MATRIX_FEATURE_COFACTOR` | ON | OFF | Single-element cofactor / minor |
-| `MATRIX_FEATURE_CRAMER` | ON | OFF | Cramer's rule solver |
-| `MATRIX_FEATURE_LU` | ON | ON | LU factorization and LU solve |
-| `MATRIX_FEATURE_COLROW` | ON | ON | Column row (outer product) expansion of A*B |
-| `MATRIX_FEATURE_VECTOR_OPS` | ON | OFF | Dot and cross product |
-| `MATRIX_FEATURE_INVERSE` | ON | OFF | Matrix inverse (the invertibility verdict is separate) |
-| `MATRIX_FEATURE_TRANSPOSE` | ON | OFF | Transpose |
-| `MATRIX_FEATURE_SPACE_BASES` | ON | OFF | Column / row / null / left-null space bases |
-| `MATRIX_FEATURE_BASIS` | ON | OFF (ON for `ce-basis*`) | Col(A) / Nul(A) with bases, dimensions and the rank theorem |
+| Program | TI name (FR) | Modules |
+|---|---|---|
+| Matrix | `MATRIX` (`MATRIXFR`) | every module |
+| MatrixLite | `MATLITE` (`MATLITFR`) | arithmetic, colrow, det, echelon, solve, dependency, invertible, lu |
+| MatrixBasis | `MATBASIS` (`MATBASFR`) | basis |
 
-The CE presets are a deliberately reduced build. Everything not needed for the
-Math 210 review sheets is off, which is what keeps the program inside the
-calculator's RAM: dot, cross, transpose, inverse and the four space bases are
-dropped, and only the shell dispatch needs guarding because LTO then strips the
-core operations automatically. The CE program is named `MATLITE` rather than
-`MATRIX` so it does not collide with a full build already on the calculator.
+A program is `programs/<name>/program.cmake`:
 
-The CE presets also pin `MATRIX_FEATURE_CRAMER=OFF`. A TI variable holds at most
-65535 bytes, and with Cramer's rule compiled in the program no longer fits:
-`convbin` splits it into a small `MATRIX.8xp` launcher plus `MATRIX0.8xv` /
-`MATRIX1.8xv` appvars, which the release workflow does not publish. Turning it
-back on is fine for local use, but check the `convbin` output for
-`Input too large; split across N appvars` before shipping the result.
-
-### MatrixBasis (`MATBASIS.8xp`)
-
-MatrixBasis is a second CE program built from the same sources with a single
-operation, **Col(A) & Nul(A)**, which sits directly on the main menu next to
-Matrices. The `ce-basis` preset turns every optional feature off except
-`MATRIX_FEATURE_BASIS`, and builds the shell with `MATRIX_SHELL_BASIS_ONLY=1`,
-which compiles the rest of the slot picker's dispatch out so LTO drops the
-other core operations. TI program names are capped at 8 characters, hence
-`MATBASIS` (and `MATBASFR` for French); it can sit next to `MATLITE`.
-
-```bash
-cmake --preset ce-basis -DCEDEV_ROOT=/path/to/CEdev
-cmake --build --preset ce-basis
+```cmake
+matrix_program(exam2
+  TI_NAME EXAM2          # 8 characters at most
+  TI_NAME_FR EXAM2FR
+  DESCRIPTION "Exam 2"
+  MODULES
+    det
+    echelon
+    basis
+)
 ```
 
-The output is `build/ce-basis/matrix_shell_basis/bin/MATBASIS.8xp`. Use
-`ce-basis-dual-lang` for both languages, or `ce-basis-debug` for the CEmu
-debug console. The same `TeXFonts.8xv` / `TeXScrpt.8xv` are required.
+Every program shares one menu tree (`shell/src/pages/menu.cpp`): Main ->
+Matrices / Operations, with the operations in their usual submenus. An
+operation whose module the program leaves out is not compiled in and drops out
+of the menus, as does any submenu left empty, so the program above shows
+Determinant, REF/RREF and Col(A) & Nul(A) under Operations and nothing else.
+Make the directory, re-run the `ce` configure, and `build/ce/exam2/bin/EXAM2.8xp`
+appears.
 
-Example: enable Cramer's rule on the CE build:
+A TI variable holds at most 65535 bytes. A program bigger than that (Matrix,
+for one) is split by `convbin` into a small launcher `.8xp` plus `.8xv`
+appvars, which all have to be sent; check the build output for
+`Input too large; split across N appvars`. Fitting in a variable is also not
+the same as fitting in calculator RAM next to the 12 KiB slab and the 20 KiB
+TeX pool, which is why MatrixLite exists.
+
+### Modules
+
+| Module | Operations |
+|---|---|
+| `arithmetic` | Add, Subtract, Multiply |
+| `colrow` | Multiply (col-row): A*B as a sum of outer products |
+| `vectors` | Dot product, Cross product, Projection |
+| `det` | Determinant |
+| `cofactor` | Cofactor C_ij |
+| `minor_matrix` | Matrix of minors |
+| `cramer` | Cramer's rule |
+| `echelon` | REF, RREF |
+| `solve` | Solve Ax = b (parametric vector form) |
+| `dependency` | Spans R^m?, Linearly independent?, Onto / 1-1? |
+| `transpose` | Transpose |
+| `inverse` | Inverse |
+| `invertible` | Invertible? |
+| `lu` | LU factorization (PA = LU), LU solve |
+| `spaces` | Col / Row / Null / Left null space bases |
+| `basis` | Col(A) & Nul(A): bases, rank, dimensions, rank theorem |
+
+A module directory holds (every part optional):
+
+| Path | What it is |
+|---|---|
+| `module.cmake` | `matrix_module(<name> DESCRIPTION ... CORE_SOURCES ... SHELL_SOURCES ... TESTS ... CE_TESTS ...)` |
+| `ops.def` | `MATRIX_OP(Id, "op.key", is_binary, run, result_body, result_steps)` rows: the operations it adds |
+| `text.inc` | its strings, as rows of the text catalog |
+| `include/matrix_core/ops_<name>.hpp`, `core/` | its core operation (engine rules: no heap, no exceptions) |
+| `shell/*.cpp`, `shell/app_members.inc` | the `App` members behind its operations, and their declarations |
+| `shell/pages.def`, `shell/pages_state.inc` | pages it adds (`MATRIX_PAGE(Kind, State, member)`) and their state |
+| `tests/` | native tests, and `*_ce.cpp` wrappers for CEmu |
+
+`cmake/matrix_program.cmake` generates, per program, the headers that tie these
+together (`matrix_shell/program/*.inc` under the build tree): `OperationId`
+lists every module's operations so the menu tree compiles the same in every
+program, but only the included ones get a name, a dispatch case and their
+strings. Strings used by more than one module, and by the shell, stay in
+`shell/include/matrix_shell/text_catalog.inc`.
+
+To add a module: create the directory, list it in `modules/modules.cmake`, put
+its operations in the menu tree in `menu.cpp`, and add it to the programs that
+want it.
+
+### Shell simulator
+
+`tools/shell_sim` runs the real calculator UI on the desktop, headless, using
+PortCE (bundled with libtexce; needs SDL2, not SDL2_mixer). A key script drives
+it and it saves screenshots, which makes UI changes testable without a
+calculator:
 
 ```bash
-cmake --preset ce -DMATRIX_FEATURE_CRAMER=ON
-cmake --build --preset ce
+cmake -S tools/shell_sim -B build/sim-matlite -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DSIM_PROGRAM=matlite
+cmake --build build/sim-matlite
+tools/shell_sim/scenarios.py matlite > build/sim-matlite/script.txt
+(cd build/sim-matlite && mkdir -p out && SHELL_SIM_SCRIPT=script.txt SHELL_SIM_OUT=out ./shell_sim)
 ```
+
+`scenarios.py` enters a set of matrices and walks every operation of a program,
+snapshotting each result and step (`.ppm`). Run it before and after a change
+and compare the two directories.
 
 ## Testing
 
@@ -145,6 +205,10 @@ ctest --preset native
 ```
 
 ### Test Suites
+
+Engine tests live in `core/tests/`; each module's tests live in its own
+`tests/` directory. The native build always builds every module, so it runs all
+of them.
 
 | Test Suite | What It Covers |
 |---|---|
@@ -171,7 +235,7 @@ ctest --preset native
 The core can also be compiled and run directly on [CEmu](github.com/CE-Programming/CEmu) as individual .8xp test programs:
 
 ```bash
-cmake --preset ce -DMATRIX_BUILD_CE_TESTS=ON
+cmake --preset ce -DCEDEV_ROOT=/path/to/CEdev -DMATRIX_BUILD_CE_TESTS=ON
 cmake --build --preset ce
 ```
 

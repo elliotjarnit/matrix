@@ -1,0 +1,3 @@
+// MATRIX_PAGE(Kind, StateType, member): see matrix_shell/app.hpp
+MATRIX_PAGE(LuResult, LuResultState, lu_result)
+MATRIX_PAGE(LuPivotConfirm, LuPivotConfirmState, lu_confirm)

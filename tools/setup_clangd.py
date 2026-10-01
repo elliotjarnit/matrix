@@ -45,44 +45,71 @@ def _symlink_or_copy(dest: Path, target: Path) -> None:
         shutil.copyfile(target, dest)
 
 
-def _generate_shell_compile_db(
-    repo_root: Path, cedev_include: Path, out_path: Path
-) -> None:
-    src_dir = repo_root / "shell" / "src"
-    sources = sorted(src_dir.rglob("*.cpp"))
-    if not sources:
-        raise RuntimeError(f"No shell sources found under {src_dir}")
+def _program_config(repo_root: Path, program: str, out_dir: Path) -> dict:
+    """Generate `program`'s headers and return its include dirs and definitions."""
+    subprocess.run(
+        [
+            "cmake",
+            f"-DPROGRAM={program}",
+            f"-DOUT={out_dir}",
+            "-P",
+            str(repo_root / "cmake" / "matrix_generate_program.cmake"),
+        ],
+        cwd=repo_root,
+        check=True,
+    )
+    return json.loads((out_dir / f"{program}.json").read_text(encoding="utf-8"))
 
+
+def _shell_args(repo_root: Path, cedev_include: Path, config: dict) -> list[str]:
     shim = repo_root / "tools" / "clangd" / "ce_shim.hpp"
+    return (
+        [
+            "clang++",
+            "-std=gnu++20",
+            "-fno-exceptions",
+            "-fno-rtti",
+            f"-include{shim}",
+        ]
+        + [f"-I{d}" for d in config["include_dirs"]]
+        + [
+            f"-I{repo_root / 'third_party' / 'libtexce' / 'src'}",
+            f"-I{repo_root / 'third_party' / 'libtexce' / 'include'}",
+            # Must be AFTER host system headers; CEdev provides sys/types.h etc.
+            f"-idirafter{cedev_include}",
+            # Match the CE build.
+            "-DTEX_USE_FONTLIB",
+            "-DTEX_DIRECT_RENDER",
+        ]
+        + [f"-D{d}" for d in config["definitions"]]
+    )
 
-    base_args = [
-        "clang++",
-        "-std=gnu++20",
-        "-fno-exceptions",
-        "-fno-rtti",
-        f"-include{shim}",
-        f"-I{repo_root / 'core' / 'include'}",
-        f"-I{repo_root / 'shell' / 'include'}",
-        f"-I{repo_root / 'third_party' / 'libtexce' / 'src'}",
-        f"-I{repo_root / 'third_party' / 'libtexce' / 'include'}",
-        # Must be AFTER host system headers; CEdev provides sys/types.h etc.
-        f"-idirafter{cedev_include}",
-        # Match CE build feature flags used in CMakeLists.txt.
-        "-DTEX_USE_FONTLIB",
-        "-DTEX_DIRECT_RENDER",
-    ]
 
-    entries: list[dict[str, object]] = []
-    for src in sources:
-        entries.append(
-            {
-                "directory": str(repo_root),
-                "file": str(src),
-                "arguments": base_args + ["-c", str(src)],
-            }
-        )
+def _generate_shell_compile_dbs(
+    repo_root: Path, cedev_include: Path, native_compile_db: Path, program: str
+) -> None:
+    """shell/compile_commands.json for the shared shell, and
+    modules/compile_commands.json for the modules: their shell code parsed as
+    for the CE, their core code with the native flags."""
+    config = _program_config(repo_root, program, repo_root / "build" / "clangd")
+    args = _shell_args(repo_root, cedev_include, config)
 
-    _write_json(out_path, entries)
+    def entries(sources: list[Path]) -> list[dict[str, object]]:
+        return [
+            {"directory": str(repo_root), "file": str(src), "arguments": args + ["-c", str(src)]}
+            for src in sources
+        ]
+
+    shell_sources = sorted((repo_root / "shell" / "src").rglob("*.cpp"))
+    if not shell_sources:
+        raise RuntimeError("No shell sources found under shell/src")
+    _write_json(repo_root / "shell" / "compile_commands.json", entries(shell_sources))
+
+    modules_dir = repo_root / "modules"
+    module_shell = sorted(modules_dir.glob("*/shell/*.cpp"))
+    native = json.loads(native_compile_db.read_text(encoding="utf-8"))
+    module_core = [e for e in native if str(Path(e["file"]).resolve()).startswith(str(modules_dir))]
+    _write_json(modules_dir / "compile_commands.json", entries(module_shell) + module_core)
 
 
 def main() -> int:
@@ -98,6 +125,11 @@ def main() -> int:
         "--native-build-dir",
         default="build/native",
         help="CMake native build directory (default: build/native).",
+    )
+    parser.add_argument(
+        "--program",
+        default="matrix",
+        help="Program whose module set the shell is parsed with (default: matrix, every module).",
     )
     parser.add_argument(
         "--no-vscode",
@@ -158,6 +190,7 @@ def main() -> int:
             '    "-include${workspaceFolder}/tools/clangd/ce_shim.hpp",\n'
             '    "-I${workspaceFolder}/core/include",\n'
             '    "-I${workspaceFolder}/shell/include",\n'
+            '    "-I${workspaceFolder}/build/clangd/programs/matrix/include",\n'
             '    "-I${workspaceFolder}/third_party/libtexce/src",\n'
             '    "-I${workspaceFolder}/third_party/libtexce/include",\n'
             '    "-idirafter${env:HOME}/CEdev/include"\n'
@@ -174,15 +207,11 @@ def main() -> int:
         native_compile_db,
     )
 
-    _generate_shell_compile_db(
-        repo_root,
-        cedev_include,
-        repo_root / "shell" / "compile_commands.json",
-    )
+    _generate_shell_compile_dbs(repo_root, cedev_include, native_compile_db, args.program)
 
     print("[clangd] Done.")
     print("  - core/compile_commands.json -> build/native/compile_commands.json")
-    print("  - shell/compile_commands.json generated for host clang++ parsing")
+    print(f"  - shell/ and modules/compile_commands.json generated for host clang++ parsing ({args.program})")
     if not args.no_vscode:
         print("  - .vscode/{settings,extensions}.json written")
         print("Next: restart clangd in VSCode (Command Palette: 'Clangd: Restart language server').")

@@ -1,0 +1,2 @@
+// MATRIX_PAGE(Kind, StateType, member): see matrix_shell/app.hpp
+MATRIX_PAGE(BasisResult, BasisResultState, basis_result)

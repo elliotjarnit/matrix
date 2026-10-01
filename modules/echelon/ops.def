@@ -1,0 +1,4 @@
+// MATRIX_OP(Id, "op.text_key", is_binary, run, result_body, result_steps):
+// see matrix_shell/app.hpp
+MATRIX_OP(Ref, "op.ref", false, run_echelon, render_result_matrix, open_result_steps)
+MATRIX_OP(Rref, "op.rref", false, run_echelon, render_result_matrix, open_result_steps)

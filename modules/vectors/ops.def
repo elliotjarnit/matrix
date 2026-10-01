@@ -1,0 +1,5 @@
+// MATRIX_OP(Id, "op.text_key", is_binary, run, result_body, result_steps):
+// see matrix_shell/app.hpp
+MATRIX_OP(Dot, "op.dot", true, run_dot, render_result_dot, open_result_steps)
+MATRIX_OP(Cross, "op.cross", true, run_cross, render_result_matrix, open_result_steps)
+MATRIX_OP(Projection, "op.projection", true, run_projection, render_result_matrix, open_result_steps)

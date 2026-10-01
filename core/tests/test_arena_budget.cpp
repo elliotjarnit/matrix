@@ -8,6 +8,18 @@
 // allows and fails if any of them would not fit. Adding a heavier operation
 // should break this test rather than the calculator.
 #include "matrix_core/matrix_core.hpp"
+#include "matrix_core/ops_dependency.hpp"
+#include "matrix_core/ops_inverse.hpp"
+#include "matrix_core/ops_solve.hpp"
+#if MATRIX_MODULE_COLROW
+#include "matrix_core/ops_colrow.hpp"
+#endif
+#if MATRIX_MODULE_BASIS
+#include "matrix_core/ops_basis.hpp"
+#endif
+#if MATRIX_MODULE_LU
+#include "matrix_core/ops_lu.hpp"
+#endif
 
 #include "test_dbg_ce.hpp"
 
@@ -89,7 +101,7 @@ int main() {
 						assert(e.render_step(i, bufs) != ErrorCode::Overflow);
 		}
 
-#if MATRIX_CORE_ENABLE_COLROW
+#if MATRIX_MODULE_COLROW
 		// column row expansion: the sum step allocates one term per column
 		{
 				reset();
@@ -135,7 +147,7 @@ int main() {
 						assert(e.render_step(i, bufs) != ErrorCode::Overflow);
 		}
 
-#if MATRIX_CORE_ENABLE_BASIS
+#if MATRIX_MODULE_BASIS
 		// Col(A) / Nul(A): both bases stay in persist for the result page
 		{
 				reset();
@@ -150,7 +162,7 @@ int main() {
 		}
 #endif
 
-#if MATRIX_CORE_ENABLE_LU
+#if MATRIX_MODULE_LU
 		// LU factorisation is the persist high water mark
 		{
 				reset();

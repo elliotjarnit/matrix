@@ -7,96 +7,32 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(MATRIX_BUILD_CE "Build for TI-84 Plus CE via CEdevToolchain.cmake" OFF)
 option(MATRIX_ENABLE_TESTS "Build native tests" ON)
 option(MATRIX_STRICT_WARNINGS "Enable -Werror and extra warnings" ON)
-option(MATRIX_BUILD_CE_SHELL "Build the Matrix shell program when MATRIX_BUILD_CE=ON" ON)
-option(MATRIX_BUILD_CE_SHELL_EN "Build English Matrix shell when MATRIX_BUILD_CE_SHELL=ON" ON)
-option(MATRIX_BUILD_CE_SHELL_FR "Build French Matrix shell when MATRIX_BUILD_CE_SHELL=ON" OFF)
-option(MATRIX_BUILD_CE_SHELL_BASIS "Build the English MatrixBasis program (Col(A) / Nul(A) only) when MATRIX_BUILD_CE_SHELL=ON" OFF)
-option(MATRIX_BUILD_CE_SHELL_BASIS_FR "Build the French MatrixBasis program when MATRIX_BUILD_CE_SHELL=ON" OFF)
 option(MATRIX_BUILD_CE_TESTS "Build core unit tests as CE programs when MATRIX_BUILD_CE=ON" OFF)
+option(MATRIX_SHELL_DEBUG "Enable shell debug logging" OFF)
 
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/matrix_features.cmake)
-matrix_resolve_feature_deps()
-matrix_print_feature_summary()
+# Calculator programs to build (programs/<name>/program.cmake); empty for all.
+set(MATRIX_CE_PROGRAMS "" CACHE STRING "Programs to build for the CE (semicolon list, empty = all)")
+# Languages to build each of them in: en, fr.
+set(MATRIX_CE_LANGS "en" CACHE STRING "Languages to build CE programs in (semicolon list of en, fr)")
 
-matrix_get_feature_compile_definitions(MATRIX_FEATURE_DEFS)
-matrix_get_feature_compile_options(MATRIX_FEATURE_COMPILE_OPTIONS)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/matrix_program.cmake)
+matrix_load_definitions()
+
+get_property(MATRIX_ALL_PROGRAMS GLOBAL PROPERTY MATRIX_PROGRAMS)
+get_property(MATRIX_ALL_MODULES GLOBAL PROPERTY MATRIX_MODULES)
+message(STATUS "Matrix modules: ${MATRIX_ALL_MODULES}")
+message(STATUS "Matrix programs: ${MATRIX_ALL_PROGRAMS}")
 
 set(MATRIX_CORE_DIR "${CMAKE_CURRENT_LIST_DIR}/core")
 
-set(MATRIX_CORE_HEADERS
-  ${MATRIX_CORE_DIR}/include/matrix_core/arena.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/config.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/error.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/explanation.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/latex.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/matrix.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/matrix_core.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/ops.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/rational.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/row_ops.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/row_reduction.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/slab.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/spaces.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/step_detail.hpp
-  ${MATRIX_CORE_DIR}/include/matrix_core/writer.hpp
-)
-
-set(MATRIX_CORE_SOURCES
-  ${MATRIX_CORE_DIR}/src/det_detail.cpp
-  ${MATRIX_CORE_DIR}/src/explanation.cpp
-  ${MATRIX_CORE_DIR}/src/latex_view.cpp
-  ${MATRIX_CORE_DIR}/src/matrix_view.cpp
-  ${MATRIX_CORE_DIR}/src/ops_basic_view.cpp
-  ${MATRIX_CORE_DIR}/src/ops_det_ondemand.cpp
-  ${MATRIX_CORE_DIR}/src/ops_inverse_ondemand.cpp
-  ${MATRIX_CORE_DIR}/src/ops_optional_stubs.cpp
-  ${MATRIX_CORE_DIR}/src/ops_rref_ondemand.cpp
-  ${MATRIX_CORE_DIR}/src/ops_dependency_ondemand.cpp
-  ${MATRIX_CORE_DIR}/src/ops_solve_parametric_ondemand.cpp
-  ${MATRIX_CORE_DIR}/src/ops_vector_ondemand.cpp
-  ${MATRIX_CORE_DIR}/src/rational.cpp
-  ${MATRIX_CORE_DIR}/src/row_reduction.cpp
-  ${MATRIX_CORE_DIR}/src/row_ops.cpp
-  ${MATRIX_CORE_DIR}/src/spaces.cpp
-  ${MATRIX_CORE_DIR}/src/step_detail.cpp
-)
-
-if(MATRIX_FEATURE_CRAMER)
-  list(APPEND MATRIX_CORE_SOURCES
-    ${MATRIX_CORE_DIR}/src/ops_cramer.cpp
-    ${MATRIX_CORE_DIR}/src/ops_det_replace_column_ondemand.cpp
-  )
+if(MATRIX_SHELL_DEBUG)
+  set(MATRIX_SHELL_DEBUG_DEFINITION MATRIX_SHELL_ENABLE_DEBUG=1)
+else()
+  set(MATRIX_SHELL_DEBUG_DEFINITION MATRIX_SHELL_ENABLE_DEBUG=0)
 endif()
 
-if(MATRIX_FEATURE_COFACTOR)
-  list(APPEND MATRIX_CORE_SOURCES
-    ${MATRIX_CORE_DIR}/src/ops_cofactor_element_ondemand.cpp
-  )
-endif()
-
-if(MATRIX_FEATURE_MINOR_MATRIX)
-  list(APPEND MATRIX_CORE_SOURCES
-    ${MATRIX_CORE_DIR}/src/ops_minor_matrix.cpp
-  )
-endif()
-
-if(MATRIX_FEATURE_COLROW)
-  list(APPEND MATRIX_CORE_SOURCES
-    ${MATRIX_CORE_DIR}/src/ops_mul_colrow_ondemand.cpp
-  )
-endif()
-
-if(MATRIX_FEATURE_LU)
-  list(APPEND MATRIX_CORE_SOURCES
-    ${MATRIX_CORE_DIR}/src/ops_lu_ondemand.cpp
-  )
-endif()
-
-if(MATRIX_FEATURE_BASIS)
-  list(APPEND MATRIX_CORE_SOURCES
-    ${MATRIX_CORE_DIR}/src/ops_basis_ondemand.cpp
-  )
-endif()
+# Every module's core, for the native tests and the CE core test programs.
+matrix_all_modules_core(MATRIX_ALL_CORE)
 
 if(MATRIX_BUILD_CE)
   set(MATRIX_LIBTEXCE_DIR "${CMAKE_CURRENT_LIST_DIR}/third_party/libtexce")
@@ -105,67 +41,71 @@ if(MATRIX_BUILD_CE)
   set(CEDEV_DEBUG_CONSOLE OFF CACHE BOOL "Disable debug console for size")
   include(${CMAKE_CURRENT_LIST_DIR}/cmake/CEdevToolchain.cmake)
 
-  if(MATRIX_BUILD_CE_SHELL)
-    set(MATRIX_SHELL_CE_SOURCES
-      ${MATRIX_CORE_SOURCES}
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_util.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_pool.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_symbols.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_metrics.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_fonts.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_token.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_parse.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_measure.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_layout.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_renderer.c
-      ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_draw.c
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/app.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/app_internal.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/input.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/page.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/main_ce.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/text.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/basis.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/cofactor.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/confirm.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/dim.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/editor.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/lu.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/menu.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/result.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/slot_pick.cpp
-      ${CMAKE_CURRENT_LIST_DIR}/shell/src/pages/steps.cpp
-    )
+  set(MATRIX_TEX_SOURCES
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_util.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_pool.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_symbols.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_metrics.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_fonts.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_token.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_parse.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_measure.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_layout.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_renderer.c
+    ${MATRIX_LIBTEXCE_DIR}/src/tex/tex_draw.c
+  )
 
-    set(MATRIX_SHELL_CE_INCLUDE_DIRS
-      ${MATRIX_CORE_DIR}/include
-      ${CMAKE_CURRENT_LIST_DIR}/shell/include
-      ${MATRIX_LIBTEXCE_DIR}/src
-      ${MATRIX_LIBTEXCE_DIR}/src/tex
-      ${MATRIX_LIBTEXCE_DIR}/include
-    )
+  set(MATRIX_TEX_INCLUDE_DIRS
+    ${MATRIX_LIBTEXCE_DIR}/src
+    ${MATRIX_LIBTEXCE_DIR}/src/tex
+    ${MATRIX_LIBTEXCE_DIR}/include
+  )
 
-    set(MATRIX_SHELL_CE_COMPILE_OPTIONS
-      -DTEX_USE_FONTLIB
-      -DTEX_DIRECT_RENDER
-      -Wframe-larger-than=127
-      -Wno-error=frame-larger-than
-      -fstack-usage
-      ${MATRIX_FEATURE_COMPILE_OPTIONS}
-    )
+  set(programs ${MATRIX_CE_PROGRAMS})
+  if(NOT programs)
+    set(programs ${MATRIX_ALL_PROGRAMS})
+  endif()
 
-    function(matrix_add_ce_shell target_name program_name description_text lang_fr_value basis_only_value)
+  # one calculator program per (program, language): target <program>[_fr],
+  # output build/<preset>/<target>/bin/<TI name>.8xp
+  foreach(program IN LISTS programs)
+    matrix_program_config(${program} P)
+    get_property(ti_name GLOBAL PROPERTY MATRIX_PROGRAM_${program}_TI_NAME)
+    get_property(ti_name_fr GLOBAL PROPERTY MATRIX_PROGRAM_${program}_TI_NAME_FR)
+    get_property(description GLOBAL PROPERTY MATRIX_PROGRAM_${program}_DESCRIPTION)
+    list(TRANSFORM P_DEFINITIONS PREPEND "-D" OUTPUT_VARIABLE program_defs)
+
+    foreach(lang IN LISTS MATRIX_CE_LANGS)
+      if(lang STREQUAL "en")
+        set(target ${program})
+        set(name ${ti_name})
+        set(desc "${description} (English)")
+        set(lang_fr 0)
+      elseif(lang STREQUAL "fr")
+        if(NOT ti_name_fr)
+          message(FATAL_ERROR "program '${program}' has no TI_NAME_FR")
+        endif()
+        set(target ${program}_fr)
+        set(name ${ti_name_fr})
+        set(desc "${description} (Francaise)")
+        set(lang_fr 1)
+      else()
+        message(FATAL_ERROR "unknown language '${lang}' in MATRIX_CE_LANGS (use en, fr)")
+      endif()
+
       cedev_add_program(
-        TARGET ${target_name}
-        NAME ${program_name}
-        DESCRIPTION ${description_text}
+        TARGET ${target}
+        NAME ${name}
+        DESCRIPTION ${desc}
         MODE auto
 
         SOURCES
-          ${MATRIX_SHELL_CE_SOURCES}
+          ${P_SOURCES}
+          ${MATRIX_TEX_SOURCES}
 
         INCLUDE_DIRECTORIES
-          ${MATRIX_SHELL_CE_INCLUDE_DIRS}
+          ${P_INCLUDE_DIRS}
+          ${MATRIX_TEX_INCLUDE_DIRS}
 
         LIBLOAD
           graphx
@@ -173,42 +113,20 @@ if(MATRIX_BUILD_CE)
           fontlibc
 
         COMPILE_OPTIONS
-          ${MATRIX_SHELL_CE_COMPILE_OPTIONS}
-          -DMATRIX_SHELL_LANG_FR=${lang_fr_value}
-          -DMATRIX_SHELL_BASIS_ONLY=${basis_only_value}
+          -DTEX_USE_FONTLIB
+          -DTEX_DIRECT_RENDER
+          -Wframe-larger-than=127
+          -Wno-error=frame-larger-than
+          -fstack-usage
+          ${program_defs}
+          -D${MATRIX_SHELL_DEBUG_DEFINITION}
+          -DMATRIX_SHELL_LANG_FR=${lang_fr}
       )
-    endfunction()
-
-    if(MATRIX_BUILD_CE_SHELL_EN)
-      matrix_add_ce_shell(matrix_shell MATLITE "MatrixLite (English)" 0 0)
-    endif()
-
-    if(MATRIX_BUILD_CE_SHELL_FR)
-      matrix_add_ce_shell(matrix_shell_fr MATLITFR "MatrixLite (Francaise)" 1 0)
-    endif()
-
-    # MatrixBasis: the same shell cut down to the Col(A) / Nul(A) operation.
-    # TI program names are at most 8 characters, hence MATBASIS.
-    if(MATRIX_BUILD_CE_SHELL_BASIS OR MATRIX_BUILD_CE_SHELL_BASIS_FR)
-      if(NOT MATRIX_FEATURE_BASIS)
-        message(FATAL_ERROR "MATRIX_BUILD_CE_SHELL_BASIS needs MATRIX_FEATURE_BASIS=ON")
-      endif()
-    endif()
-
-    if(MATRIX_BUILD_CE_SHELL_BASIS)
-      matrix_add_ce_shell(matrix_shell_basis MATBASIS "MatrixBasis (English)" 0 1)
-    endif()
-
-    if(MATRIX_BUILD_CE_SHELL_BASIS_FR)
-      matrix_add_ce_shell(matrix_shell_basis_fr MATBASFR "MatrixBasis (Francaise)" 1 1)
-    endif()
-
-    if(NOT MATRIX_BUILD_CE_SHELL_EN AND NOT MATRIX_BUILD_CE_SHELL_FR AND NOT MATRIX_BUILD_CE_SHELL_BASIS AND NOT MATRIX_BUILD_CE_SHELL_BASIS_FR)
-      message(WARNING "MATRIX_BUILD_CE_SHELL=ON but every shell variant is OFF; no shell binary will be produced.")
-    endif()
-  endif()
+    endforeach()
+  endforeach()
 
   if(MATRIX_BUILD_CE_TESTS)
+    list(TRANSFORM MATRIX_ALL_CORE_DEFINITIONS PREPEND "-D" OUTPUT_VARIABLE core_defs)
     function(matrix_add_ce_core_test target name source)
       cedev_add_program(
         TARGET ${target}
@@ -217,12 +135,13 @@ if(MATRIX_BUILD_CE)
         MODE auto
 
         SOURCES
-          ${MATRIX_CORE_SOURCES}
+          ${MATRIX_ALL_CORE_SOURCES}
           ${MATRIX_CORE_DIR}/tests_ce/ce_test_runtime.cpp
           ${source}
 
         INCLUDE_DIRECTORIES
-          ${MATRIX_CORE_DIR}/include
+          ${MATRIX_ALL_CORE_INCLUDE_DIRS}
+          ${MATRIX_CORE_DIR}/tests
 
         COMPILE_OPTIONS
           -UNDEBUG
@@ -231,7 +150,7 @@ if(MATRIX_BUILD_CE)
           -Wframe-larger-than=127
           -Wno-error=frame-larger-than
           -fstack-usage
-          ${MATRIX_FEATURE_COMPILE_OPTIONS}
+          ${core_defs}
       )
     endfunction()
 
@@ -239,31 +158,29 @@ if(MATRIX_BUILD_CE)
     matrix_add_ce_core_test(ce_test_matrix_ops TSTMOPS ${MATRIX_CORE_DIR}/tests_ce/test_matrix_ops_ce.cpp)
     matrix_add_ce_core_test(ce_test_rref TSTRREF ${MATRIX_CORE_DIR}/tests_ce/test_rref_ce.cpp)
     matrix_add_ce_core_test(ce_test_det TSTDET ${MATRIX_CORE_DIR}/tests_ce/test_det_ce.cpp)
-    matrix_add_ce_core_test(ce_test_inverse TSTINV ${MATRIX_CORE_DIR}/tests_ce/test_inverse_ce.cpp)
-    matrix_add_ce_core_test(ce_test_vectors TSTVEC ${MATRIX_CORE_DIR}/tests_ce/test_vectors_ce.cpp)
     matrix_add_ce_core_test(ce_test_spaces TSTSPC ${MATRIX_CORE_DIR}/tests_ce/test_spaces_ce.cpp)
-    if(MATRIX_FEATURE_MINOR_MATRIX)
-      matrix_add_ce_core_test(ce_test_minor_matrix TSTMIN ${MATRIX_CORE_DIR}/tests_ce/test_minor_matrix_ce.cpp)
-    endif()
-    if(MATRIX_FEATURE_COFACTOR)
-      matrix_add_ce_core_test(ce_test_cofactor_element TSTCOF ${MATRIX_CORE_DIR}/tests_ce/test_cofactor_element_ce.cpp)
-    endif()
-    if(MATRIX_FEATURE_CRAMER)
-      matrix_add_ce_core_test(ce_test_cramer TSTCRAM ${MATRIX_CORE_DIR}/tests_ce/test_cramer_ce.cpp)
-    endif()
-
+    foreach(module IN LISTS MATRIX_ALL_MODULES)
+      get_property(dir GLOBAL PROPERTY MATRIX_MODULE_${module}_DIR)
+      get_property(ce_tests GLOBAL PROPERTY MATRIX_MODULE_${module}_CE_TESTS)
+      foreach(entry IN LISTS ce_tests)
+        string(REPLACE ":" ";" parts ${entry})
+        list(GET parts 0 stem)
+        list(GET parts 1 name)
+        matrix_add_ce_core_test(ce_${stem} ${name} ${dir}/tests/${stem}.cpp)
+      endforeach()
+    endforeach()
   endif()
 
-  message(STATUS "Matrix CE build enabled")
+  message(STATUS "Matrix CE build: ${programs} (${MATRIX_CE_LANGS})")
   return()
 endif()
 
 # native library + tests
 function(matrix_core_apply target_name)
-  target_include_directories(${target_name} PRIVATE ${MATRIX_CORE_DIR}/include)
+  target_include_directories(${target_name} PRIVATE ${MATRIX_ALL_CORE_INCLUDE_DIRS} ${MATRIX_CORE_DIR}/tests)
   target_compile_features(${target_name} PRIVATE cxx_std_20)
 
-  target_compile_definitions(${target_name} PRIVATE ${MATRIX_FEATURE_DEFS})
+  target_compile_definitions(${target_name} PRIVATE ${MATRIX_ALL_CORE_DEFINITIONS})
 
   target_compile_options(${target_name} PRIVATE
     -fno-exceptions
@@ -285,179 +202,42 @@ function(matrix_core_apply target_name)
   endif()
 endfunction()
 
+# Every module's core compiled once and shared by the test executables.
+add_library(matrix_core_all STATIC ${MATRIX_ALL_CORE_SOURCES})
+matrix_core_apply(matrix_core_all)
+
 # Optional profiling helper; the source is not checked in, so only build it
 # when present rather than failing configure for everyone.
 if(EXISTS ${MATRIX_CORE_DIR}/profile/profile_cramer.cpp)
-  add_executable(matrix_profile_cramer
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/profile/profile_cramer.cpp
-  )
+  add_executable(matrix_profile_cramer ${MATRIX_CORE_DIR}/profile/profile_cramer.cpp)
   matrix_core_apply(matrix_profile_cramer)
+  target_link_libraries(matrix_profile_cramer PRIVATE matrix_core_all)
   target_compile_options(matrix_profile_cramer PRIVATE -fstack-usage)
 endif()
 
 if(MATRIX_ENABLE_TESTS)
   enable_testing()
 
-  add_executable(test_rational
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_rational.cpp
-  )
-  matrix_core_apply(test_rational)
+  # tests/<stem>.cpp -> executable <stem>, ctest name <stem> without "test_"
+  function(matrix_add_native_test stem source)
+    add_executable(${stem} ${source})
+    matrix_core_apply(${stem})
+    target_link_libraries(${stem} PRIVATE matrix_core_all)
+    string(REGEX REPLACE "^test_" "" name ${stem})
+    add_test(NAME ${name} COMMAND ${stem})
+  endfunction()
 
-  add_executable(test_matrix_ops
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_matrix_ops.cpp
-  )
-  matrix_core_apply(test_matrix_ops)
+  # the engine
+  foreach(stem IN ITEMS test_rational test_matrix_ops test_rref test_det test_spaces test_arena_guards test_arena_budget)
+    matrix_add_native_test(${stem} ${MATRIX_CORE_DIR}/tests/${stem}.cpp)
+  endforeach()
 
-  add_executable(test_rref
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_rref.cpp
-  )
-  matrix_core_apply(test_rref)
-
-  add_executable(test_det
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_det.cpp
-  )
-  matrix_core_apply(test_det)
-
-  if(MATRIX_FEATURE_MINOR_MATRIX)
-    add_executable(test_minor_matrix
-      ${MATRIX_CORE_SOURCES}
-      ${MATRIX_CORE_HEADERS}
-      ${MATRIX_CORE_DIR}/tests/test_minor_matrix.cpp
-    )
-    matrix_core_apply(test_minor_matrix)
-  endif()
-
-  if(MATRIX_FEATURE_COFACTOR)
-    add_executable(test_cofactor_element
-      ${MATRIX_CORE_SOURCES}
-      ${MATRIX_CORE_HEADERS}
-      ${MATRIX_CORE_DIR}/tests/test_cofactor_element.cpp
-    )
-    matrix_core_apply(test_cofactor_element)
-  endif()
-
-  if(MATRIX_FEATURE_CRAMER)
-    add_executable(test_cramer
-      ${MATRIX_CORE_SOURCES}
-      ${MATRIX_CORE_HEADERS}
-      ${MATRIX_CORE_DIR}/tests/test_cramer.cpp
-    )
-    matrix_core_apply(test_cramer)
-  endif()
-
-  add_executable(test_inverse
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_inverse.cpp
-  )
-  matrix_core_apply(test_inverse)
-
-  add_executable(test_vectors
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_vectors.cpp
-  )
-  matrix_core_apply(test_vectors)
-
-  add_executable(test_spaces
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_spaces.cpp
-  )
-  matrix_core_apply(test_spaces)
-
-  if(MATRIX_FEATURE_BASIS)
-    add_executable(test_basis
-      ${MATRIX_CORE_SOURCES}
-      ${MATRIX_CORE_HEADERS}
-      ${MATRIX_CORE_DIR}/tests/test_basis.cpp
-    )
-    matrix_core_apply(test_basis)
-  endif()
-
-  if(MATRIX_FEATURE_LU)
-    add_executable(test_lu
-      ${MATRIX_CORE_SOURCES}
-      ${MATRIX_CORE_HEADERS}
-      ${MATRIX_CORE_DIR}/tests/test_lu.cpp
-    )
-    matrix_core_apply(test_lu)
-  endif()
-
-  add_executable(test_arena_guards
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_arena_guards.cpp
-  )
-  matrix_core_apply(test_arena_guards)
-  add_executable(test_solve_parametric
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_solve_parametric.cpp
-  )
-  matrix_core_apply(test_solve_parametric)
-
-  add_executable(test_dependency
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_dependency.cpp
-  )
-  matrix_core_apply(test_dependency)
-
-  if(MATRIX_FEATURE_COLROW)
-    add_executable(test_mul_colrow
-      ${MATRIX_CORE_SOURCES}
-      ${MATRIX_CORE_HEADERS}
-      ${MATRIX_CORE_DIR}/tests/test_mul_colrow.cpp
-    )
-    matrix_core_apply(test_mul_colrow)
-  endif()
-
-  add_executable(test_arena_budget
-    ${MATRIX_CORE_SOURCES}
-    ${MATRIX_CORE_HEADERS}
-    ${MATRIX_CORE_DIR}/tests/test_arena_budget.cpp
-  )
-  matrix_core_apply(test_arena_budget)
-
-  add_test(NAME rational COMMAND test_rational)
-  add_test(NAME matrix_ops COMMAND test_matrix_ops)
-  add_test(NAME rref COMMAND test_rref)
-  add_test(NAME det COMMAND test_det)
-  add_test(NAME inverse COMMAND test_inverse)
-  add_test(NAME vectors COMMAND test_vectors)
-  add_test(NAME spaces COMMAND test_spaces)
-  add_test(NAME arena_guards COMMAND test_arena_guards)
-  add_test(NAME solve_parametric COMMAND test_solve_parametric)
-  add_test(NAME dependency COMMAND test_dependency)
-  add_test(NAME arena_budget COMMAND test_arena_budget)
-
-  if(MATRIX_FEATURE_COLROW)
-    add_test(NAME mul_colrow COMMAND test_mul_colrow)
-  endif()
-  if(MATRIX_FEATURE_MINOR_MATRIX)
-    add_test(NAME minor_matrix COMMAND test_minor_matrix)
-  endif()
-  if(MATRIX_FEATURE_COFACTOR)
-    add_test(NAME cofactor_element COMMAND test_cofactor_element)
-  endif()
-  if(MATRIX_FEATURE_CRAMER)
-    add_test(NAME cramer COMMAND test_cramer)
-  endif()
-  if(MATRIX_FEATURE_LU)
-    add_test(NAME lu COMMAND test_lu)
-  endif()
-  if(MATRIX_FEATURE_BASIS)
-    add_test(NAME basis COMMAND test_basis)
-  endif()
+  # every module's own tests
+  foreach(module IN LISTS MATRIX_ALL_MODULES)
+    get_property(dir GLOBAL PROPERTY MATRIX_MODULE_${module}_DIR)
+    get_property(tests GLOBAL PROPERTY MATRIX_MODULE_${module}_TESTS)
+    foreach(stem IN LISTS tests)
+      matrix_add_native_test(${stem} ${dir}/tests/${stem}.cpp)
+    endforeach()
+  endforeach()
 endif()

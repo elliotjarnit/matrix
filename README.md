@@ -67,9 +67,21 @@ Linear algebra courses require you to work through lengthy and repetitive calcul
 | **Solve via RREF** | Solve a linear system using row reduction |
 | **Col(A) & Nul(A)** | Col(A) and Nul(A), a basis for each, rank and dimensions, checked with the rank theorem |
 
+### Programs
+
+The same code builds several calculator programs. Each one is a list of features (modules), and its menus show only those:
+
+| Program | File | What it has |
+|---|---|---|
+| **MatrixLite** | `MATLITE.8xp` | what the Math 210 review sheets ask for; the one in the releases |
+| **MatrixBasis** | `MATBASIS.8xp` | only Col(A) & Nul(A) |
+| **Matrix** | `MATRIX.8xp` + `MATRIX0.8xv`, `MATRIX1.8xv` | everything; too large for one file, and may not fit in calculator RAM |
+
+To make a program with exactly the features you need (for an exam, say), add a `programs/<name>/program.cmake` listing the modules you want and rebuild; [CONTRIBUTING.md](CONTRIBUTING.md#modules-and-programs) lists the modules and has an example.
+
 ### MatrixBasis
 
-**MatrixBasis** (`MATBASIS.8xp`) is a separate, smaller program that does only one thing: pick a matrix A and it shows
+**MatrixBasis** (`MATBASIS.8xp`) is a separate, smaller program that does only one thing: choose **Operations > Col(A) & Nul(A)**, pick a matrix A, and it shows
 
 - **Col(A)** = Span of the columns of A, a subspace of R^m, and **Nul(A)** = {x : Ax = 0}, a subspace of R^n
 - the **pivot columns** and **free variables**

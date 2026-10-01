@@ -1,0 +1,4 @@
+// MATRIX_OP(Id, "op.text_key", is_binary, run, result_body, result_steps):
+// see matrix_shell/app.hpp
+MATRIX_OP(LuFactor, "op.lu_factor", false, run_lu_factor_op, render_result_matrix, open_result_steps)
+MATRIX_OP(LuSolve, "op.lu_solve", true, run_lu_solve_op, render_result_lu_solve, open_result_steps)

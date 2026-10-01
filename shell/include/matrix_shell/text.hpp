@@ -9,7 +9,7 @@ namespace matrix_shell {
 enum class TextId : std::uint16_t {
 		None = 0,
 #define MATRIX_SHELL_TEXT_ENTRY(id, key, en, fr) id,
-#include "matrix_shell/text_catalog.inc"
+#include "matrix_shell/program/text.inc"
 #undef MATRIX_SHELL_TEXT_ENTRY
 		Count
 };
@@ -28,8 +28,7 @@ template <std::size_t N> struct FixedString {
 		}
 };
 
-template <std::size_t N>
-FixedString(const char (&)[N]) -> FixedString<N>;
+template <std::size_t N> FixedString(const char (&)[N]) -> FixedString<N>;
 
 template <FixedString A, FixedString B> consteval bool fixed_string_equal() noexcept {
 		if constexpr (A.size != B.size) {
@@ -43,15 +42,14 @@ template <FixedString A, FixedString B> consteval bool fixed_string_equal() noex
 		}
 }
 
-template <FixedString>
-struct dependent_false : std::false_type {};
+template <FixedString> struct dependent_false : std::false_type {};
 
 template <FixedString Key> consteval TextId key_to_id() noexcept {
-#define MATRIX_SHELL_TEXT_ENTRY(id, key, en, fr)                                                                         \
-		if constexpr (fixed_string_equal<Key, FixedString{key}>()) {                                                     \
-				return TextId::id;                                                                                        \
+#define MATRIX_SHELL_TEXT_ENTRY(id, key, en, fr)                                                                                           \
+		if constexpr (fixed_string_equal<Key, FixedString{key}>()) {                                                                       \
+				return TextId::id;                                                                                                         \
 		} else
-#include "matrix_shell/text_catalog.inc"
+#include "matrix_shell/program/text.inc"
 #undef MATRIX_SHELL_TEXT_ENTRY
 		{
 				static_assert(dependent_false<Key>::value, "Unknown localization key used with _tx/_tid literal");

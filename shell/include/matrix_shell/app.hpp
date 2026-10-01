@@ -5,6 +5,7 @@
 
 #include "matrix_core/arena.hpp"
 #include "matrix_core/explanation.hpp"
+#include "matrix_core/ops.hpp"
 #include "matrix_core/matrix.hpp"
 #include "matrix_core/rational.hpp"
 #include "matrix_core/slab.hpp"
@@ -20,6 +21,9 @@ namespace matrix_shell {
 constexpr std::size_t kMaxPageDepth = 8;
 constexpr std::uint8_t kSlotCount = 8;
 
+// The menu tree shared by every program (shell/src/pages/menu.cpp). Entries
+// for operations the program leaves out are hidden, and so is a submenu with
+// nothing left in it.
 enum class MenuId : std::uint8_t {
 		Main,
 		Matrices,
@@ -29,37 +33,27 @@ enum class MenuId : std::uint8_t {
 		AddSub,
 		RefRref,
 		Multiply,
+		CofactorCramer,
 		SlotList, // A..H (edit)
 };
 
+// Every module's operations, whether or not this program includes them, so the
+// menu tree compiles the same everywhere; see modules/*/ops.def. A row is
+//
+//   MATRIX_OP(Id, "op.text_key", is_binary, run, result_body, result_steps)
+//
+// where `run`, `result_body` and `result_steps` are App members:
+//   void run(OperationId, std::uint8_t slot_a, std::uint8_t slot_b) noexcept
+//   void result_body(const ResultState&) noexcept      draws a Result page
+//   bool result_steps(const ResultState&) noexcept      2ND on a Result page
+// The generated ops.inc expands the rows of included modules as MATRIX_OP_IN
+// and the rest as MATRIX_OP_OUT.
 enum class OperationId : std::uint8_t {
-		Add,
-		Sub,
-		Mul,
-		Dot,
-		Cross,
-		Projection,
-		Cramer,
-		Det,
-		SolveRref,
-		SpanTest,
-		IndepTest,
-		Transpose,
-		Inverse,
-		ColSpaceBasis,
-		RowSpaceBasis,
-		NullSpaceBasis,
-		LeftNullSpaceBasis,
-		MinorMatrix,
-		CofactorElement,
-		Ref,
-		Rref,
-		LuFactor,
-		LuSolve,
-		Invertible,
-		Transformation,
-		MulColRow,
-		Basis, // Col(A), Nul(A), their bases and the rank theorem
+#define MATRIX_OP_IN(id, key, binary, run, body, steps) id,
+#define MATRIX_OP_OUT(id, key, binary, run, body, steps) id,
+#include "matrix_shell/program/ops.inc"
+#undef MATRIX_OP_IN
+#undef MATRIX_OP_OUT
 };
 
 struct MenuState {
@@ -115,14 +109,10 @@ struct ResultState {
 enum class ConfirmAction : std::uint8_t {
 		Resize,
 		Clear,
-		LuPivotFactor, // retry LU factorization with row swaps
-		LuPivotSolve,  // retry LU solve with row swaps
 };
 
 struct ConfirmState {
 		std::uint8_t slot;
-		std::uint8_t slot_b; // second operand, for the LU solve retry
-		std::uint8_t col;    // 0 based column that needs the swap (LU actions)
 		ConfirmAction action;
 };
 
@@ -132,93 +122,30 @@ struct MessageState {
 		char text[64];
 };
 
+struct StepsState {
+		std::uint16_t index;
+};
+
+// state structs of the pages modules add (modules/*/shell/pages_state.inc)
+#include "matrix_shell/program/page_states.inc"
+
+// Pages modules add are listed in modules/*/shell/pages.def as
+//
+//   MATRIX_PAGE(Kind, StateType, member)
+//
+// giving PageKind::Kind, the union member `member`, and the App members
+// render_<member>(const StateType&) and update_<member>(StateType&).
 enum class PageKind : std::uint8_t {
 		Menu,
 		Dim,
 		Editor,
 		SlotPick,
-		CofactorElement,
 		Result,
-		ProjectionResult,
-		LuResult,
-		CramerStepsMenu,
-		BasisResult,
 		Steps,
 		Confirm,
-};
-
-struct CofactorElementState {
-		std::uint8_t slot;
-		std::uint8_t n;     // square size
-		std::uint8_t i;     // 0-based
-		std::uint8_t j;     // 0-based
-		std::uint8_t focus; // 0=i, 1=j
-};
-
-struct ProjectionResultState {
-		std::uint8_t slot_u;
-		std::uint8_t slot_v;
-		std::uint8_t mode; // 0=proj, 1=orth
-		bool has_steps;
-
-		std::uint8_t rows;
-		std::uint8_t cols;
-		std::uint8_t stride_proj;
-		std::uint8_t stride_orth;
-		const matrix_core::Rational* proj_data;
-		const matrix_core::Rational* orth_data;
-
-		std::int64_t k_num;
-		std::int64_t k_den;
-};
-
-// the factors share a row count: L and P are rows x rows, U is rows x u_cols.
-// p_data is null unless row swaps were used.
-struct LuResultState {
-		std::uint8_t slot_a;
-		std::uint8_t mode; // 0=L, 1=U, 2=P
-		bool has_steps;
-
-		std::uint8_t rows;
-		std::uint8_t u_cols;
-		std::uint8_t stride_l;
-		std::uint8_t stride_u;
-		std::uint8_t stride_p;
-		const matrix_core::Rational* l_data;
-		const matrix_core::Rational* u_data;
-		const matrix_core::Rational* p_data;
-};
-
-// Col(A) / Nul(A). Both bases live in the persist tail; a zero subspace is
-// stored as a single zero column, so `rank` / `nullity` (not the column counts)
-// say how many basis vectors there are.
-struct BasisResultState {
-		std::uint8_t slot_a;
-		std::uint8_t mode; // 0=summary, 1=Col(A) basis, 2=Nul(A) basis
-		bool has_steps;
-
-		std::uint8_t rows; // m
-		std::uint8_t cols; // n
-		std::uint8_t rank;
-		std::uint8_t nullity;
-		std::uint8_t pivot_mask;
-
-		std::uint8_t stride_col;
-		std::uint8_t stride_nul;
-		const matrix_core::Rational* col_data; // m x max(rank, 1)
-		const matrix_core::Rational* nul_data; // n x max(nullity, 1)
-};
-
-struct CramerStepsMenuState {
-		std::uint8_t slot_a;
-		std::uint8_t slot_b;
-		std::uint8_t n;
-		std::uint8_t cursor;
-		std::uint8_t scroll;
-};
-
-struct StepsState {
-		std::uint16_t index;
+#define MATRIX_PAGE(kind, state, member) kind,
+#include "matrix_shell/program/pages.inc"
+#undef MATRIX_PAGE
 };
 
 struct Page {
@@ -229,21 +156,18 @@ struct Page {
 				DimState dim;
 				EditorState editor;
 				SlotPickState pick;
-				CofactorElementState cofactor;
 				ResultState result;
-				ProjectionResultState proj;
-				LuResultState lu;
-				CramerStepsMenuState cramer_steps;
-				BasisResultState basis;
 				StepsState steps;
 				ConfirmState confirm;
+#define MATRIX_PAGE(kind, state, member) state member;
+#include "matrix_shell/program/pages.inc"
+#undef MATRIX_PAGE
 		} u;
 
 		static Page make_menu(MenuId id) noexcept;
 		static Page make_dim(std::uint8_t slot, std::uint8_t rows, std::uint8_t cols) noexcept;
 		static Page make_editor(std::uint8_t slot) noexcept;
 		static Page make_slot_pick(OperationId op) noexcept;
-		static Page make_cofactor_element(std::uint8_t slot, std::uint8_t n) noexcept;
 		static Page make_result_matrix(OperationId op,
 		        std::uint8_t slot_a,
 		        std::uint8_t slot_b,
@@ -254,44 +178,8 @@ struct Page {
 		        const matrix_core::Rational* data) noexcept;
 		static Page make_result_scalar(
 		        OperationId op, std::uint8_t slot_a, std::uint8_t slot_b, bool has_steps, std::int64_t num, std::int64_t den) noexcept;
-		static Page make_projection_result(std::uint8_t slot_u,
-		        std::uint8_t slot_v,
-		        bool has_steps,
-		        std::uint8_t rows,
-		        std::uint8_t cols,
-		        std::uint8_t stride_proj,
-		        const matrix_core::Rational* proj_data,
-		        std::uint8_t stride_orth,
-		        const matrix_core::Rational* orth_data,
-		        std::int64_t k_num,
-		        std::int64_t k_den) noexcept;
-		static Page make_lu_result(std::uint8_t slot_a,
-		        bool has_steps,
-		        std::uint8_t rows,
-		        std::uint8_t u_cols,
-		        std::uint8_t stride_l,
-		        const matrix_core::Rational* l_data,
-		        std::uint8_t stride_u,
-		        const matrix_core::Rational* u_data,
-		        std::uint8_t stride_p,
-		        const matrix_core::Rational* p_data) noexcept;
-		static Page make_basis_result(std::uint8_t slot_a,
-		        bool has_steps,
-		        std::uint8_t rows,
-		        std::uint8_t cols,
-		        std::uint8_t rank,
-		        std::uint8_t nullity,
-		        std::uint8_t pivot_mask,
-		        std::uint8_t stride_col,
-		        const matrix_core::Rational* col_data,
-		        std::uint8_t stride_nul,
-		        const matrix_core::Rational* nul_data) noexcept;
-		static Page make_cramer_steps_menu(std::uint8_t slot_a, std::uint8_t slot_b, std::uint8_t n) noexcept;
-		static Page make_result_cofactor_element(
-		        std::uint8_t slot_a, std::uint8_t i, std::uint8_t j, bool has_steps, std::int64_t num, std::int64_t den) noexcept;
 		static Page make_steps() noexcept;
 		static Page make_confirm(std::uint8_t slot, ConfirmAction action) noexcept;
-		static Page make_confirm_lu(std::uint8_t slot_a, std::uint8_t slot_b, std::uint8_t col, ConfirmAction action) noexcept;
 };
 
 struct Slot {
@@ -354,12 +242,7 @@ class App {
 		void render_editor(const EditorState& s) noexcept;
 		void render_slot_pick(const SlotPickState& s) noexcept;
 		void render_result(const ResultState& s) noexcept;
-		void render_projection_result(const ProjectionResultState& s) noexcept;
-		void render_lu_result(const LuResultState& s) noexcept;
-		void render_cramer_steps_menu(const CramerStepsMenuState& s) noexcept;
-		void render_basis_result(const BasisResultState& s) noexcept;
 		void render_steps(const StepsState& s) noexcept;
-		void render_cofactor_element(const CofactorElementState& s) noexcept;
 		void render_confirm(const ConfirmState& s) noexcept;
 
 		void update_message() noexcept;
@@ -369,23 +252,31 @@ class App {
 		void update_dim(DimState& s) noexcept;
 		void update_editor(EditorState& s) noexcept;
 		void update_slot_pick(SlotPickState& s) noexcept;
-		void update_cofactor_element(CofactorElementState& s) noexcept;
 		void update_result(ResultState& s) noexcept;
-		void update_projection_result(ProjectionResultState& s) noexcept;
-		void update_lu_result(LuResultState& s) noexcept;
-		void update_cramer_steps_menu(CramerStepsMenuState& s) noexcept;
-		void update_basis_result(BasisResultState& s) noexcept;
 		void update_steps(StepsState& s) noexcept;
 		void update_confirm(ConfirmState& s) noexcept;
 
-		// LU entry points, shared by the slot picker and the row swap prompt.
-		// On success each pops the current page and pushes the result; when a swap
-		// is needed and `allow_swaps` is false they push the confirmation instead.
-		void run_invertible(std::uint8_t slot) noexcept;
-		void run_transformation(std::uint8_t slot) noexcept;
-		void run_lu_factor(std::uint8_t slot, bool allow_swaps) noexcept;
-		void run_lu_solve(std::uint8_t slot_a, std::uint8_t slot_b, bool allow_swaps) noexcept;
-		void run_basis(std::uint8_t slot) noexcept;
+		// runs `op` on the picked slots; the op's `run` member replaces the slot
+		// picker with its result page, or leaves it up with a message
+		void run_operation(OperationId op, std::uint8_t slot_a, std::uint8_t slot_b) noexcept;
+
+		// A op B into a new matrix shown on a Result page: add, subtract and the
+		// products. `product` picks the m x p * p x n shape over equal shapes.
+		using BinaryMatrixOp = matrix_core::Error (*)(matrix_core::MatrixView,
+		        matrix_core::MatrixView,
+		        matrix_core::MatrixMutView,
+		        matrix_core::Explanation*,
+		        const matrix_core::ExplainOptions&) noexcept;
+		void run_binary_matrix_op(OperationId op, std::uint8_t a_slot, std::uint8_t b_slot, bool product, BinaryMatrixOp fn) noexcept;
+
+		// shared pieces of Result pages, for the modules' result bodies
+		void render_result_matrix(const ResultState& s) noexcept; // the matrix grid alone
+		void render_result_grid(const ResultState& s, int grid_top) noexcept;
+		void render_rank_line(const ResultState& s) noexcept;  // "rank=2 null=1 piv:1 3"
+		bool open_result_steps(const ResultState& s) noexcept; // push the Steps page
+
+		// what each module adds (modules/*/shell/app_members.inc)
+#include "matrix_shell/program/app_members.inc"
 
 		matrix_core::ErrorCode ensure_slot_allocated(std::uint8_t slot) noexcept;
 		void clear_slot(std::uint8_t slot) noexcept;

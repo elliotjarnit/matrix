@@ -264,40 +264,21 @@ bool App::step() noexcept {
 		case PageKind::SlotPick:
 				update_slot_pick(p.u.pick);
 				break;
-#if MATRIX_SHELL_ENABLE_COFACTOR && MATRIX_CORE_ENABLE_COFACTOR
-		case PageKind::CofactorElement:
-				update_cofactor_element(p.u.cofactor);
-				break;
-#endif
 		case PageKind::Result:
 				update_result(p.u.result);
 				break;
-#if MATRIX_SHELL_ENABLE_PROJECTION && MATRIX_CORE_ENABLE_PROJECTION
-		case PageKind::ProjectionResult:
-				update_projection_result(p.u.proj);
-				break;
-#endif
-#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
-		case PageKind::LuResult:
-				update_lu_result(p.u.lu);
-				break;
-#endif
-#if MATRIX_SHELL_ENABLE_CRAMER && MATRIX_CORE_ENABLE_CRAMER
-		case PageKind::CramerStepsMenu:
-				update_cramer_steps_menu(p.u.cramer_steps);
-				break;
-#endif
-#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
-		case PageKind::BasisResult:
-				update_basis_result(p.u.basis);
-				break;
-#endif
 		case PageKind::Steps:
 				update_steps(p.u.steps);
 				break;
 		case PageKind::Confirm:
 				update_confirm(p.u.confirm);
 				break;
+#define MATRIX_PAGE(kind, state, member)                                                                                                   \
+		case PageKind::kind:                                                                                                               \
+				update_##member(p.u.member);                                                                                               \
+				break;
+#include "matrix_shell/program/pages.inc"
+#undef MATRIX_PAGE
 		default:
 				fail_fast("Unhandled PageKind in step()");
 		}
@@ -361,40 +342,21 @@ void App::render() noexcept {
 		case PageKind::SlotPick:
 				render_slot_pick(p.u.pick);
 				break;
-#if MATRIX_SHELL_ENABLE_COFACTOR && MATRIX_CORE_ENABLE_COFACTOR
-		case PageKind::CofactorElement:
-				render_cofactor_element(p.u.cofactor);
-				break;
-#endif
 		case PageKind::Result:
 				render_result(p.u.result);
 				break;
-#if MATRIX_SHELL_ENABLE_PROJECTION && MATRIX_CORE_ENABLE_PROJECTION
-		case PageKind::ProjectionResult:
-				render_projection_result(p.u.proj);
-				break;
-#endif
-#if MATRIX_SHELL_ENABLE_LU && MATRIX_CORE_ENABLE_LU
-		case PageKind::LuResult:
-				render_lu_result(p.u.lu);
-				break;
-#endif
-#if MATRIX_SHELL_ENABLE_CRAMER && MATRIX_CORE_ENABLE_CRAMER
-		case PageKind::CramerStepsMenu:
-				render_cramer_steps_menu(p.u.cramer_steps);
-				break;
-#endif
-#if MATRIX_SHELL_ENABLE_BASIS && MATRIX_CORE_ENABLE_BASIS
-		case PageKind::BasisResult:
-				render_basis_result(p.u.basis);
-				break;
-#endif
 		case PageKind::Steps:
 				render_steps(p.u.steps);
 				break;
 		case PageKind::Confirm:
 				render_confirm(p.u.confirm);
 				break;
+#define MATRIX_PAGE(kind, state, member)                                                                                                   \
+		case PageKind::kind:                                                                                                               \
+				render_##member(p.u.member);                                                                                               \
+				break;
+#include "matrix_shell/program/pages.inc"
+#undef MATRIX_PAGE
 		default:
 				fail_fast("Unhandled PageKind in render()");
 		}
