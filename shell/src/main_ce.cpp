@@ -16,6 +16,7 @@ int main(void) {
 		gfx_palette[matrix_shell::ui::color::kLightGray] = gfx_RGBTo1555(230, 230, 230);
 		gfx_palette[matrix_shell::ui::color::kDarkGray] = gfx_RGBTo1555(160, 160, 160);
 		gfx_palette[matrix_shell::ui::color::kBlue] = gfx_RGBTo1555(40, 90, 255);
+		gfx_palette[matrix_shell::ui::color::kPaleBlue] = gfx_RGBTo1555(205, 220, 255);
 
 		static matrix_shell::App app;
 		if (!app.init()) {

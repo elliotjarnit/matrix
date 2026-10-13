@@ -10,6 +10,7 @@ constexpr std::uint8_t kWhite = 1;
 constexpr std::uint8_t kLightGray = 2;
 constexpr std::uint8_t kDarkGray = 3;
 constexpr std::uint8_t kBlue = 4;
+constexpr std::uint8_t kPaleBlue = 5;
 } // namespace color
 
 struct Layout {

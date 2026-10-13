@@ -20,6 +20,21 @@
 #if MATRIX_MODULE_LU
 #include "matrix_core/ops_lu.hpp"
 #endif
+#if MATRIX_MODULE_EXPANSION
+#include "matrix_core/ops_expansion.hpp"
+#endif
+#if MATRIX_MODULE_ADJUGATE
+#include "matrix_core/ops_adjugate.hpp"
+#endif
+#if MATRIX_MODULE_TRIANGULAR
+#include "matrix_core/ops_triangular.hpp"
+#endif
+#if MATRIX_MODULE_INDEP_DET
+#include "matrix_core/ops_indep_det.hpp"
+#endif
+#if MATRIX_MODULE_AREA
+#include "matrix_core/ops_area.hpp"
+#endif
 
 #include "test_dbg_ce.hpp"
 
@@ -159,6 +174,101 @@ int main() {
 				        op_basis(a.view(), persist, scratch, &col, &nul, &info, &e, ExplainOptions{.enable = true, .persist = &persist})));
 				for (std::size_t i = 0; i < e.step_count(); i++)
 						assert(e.render_step(i, bufs) != ErrorCode::Overflow);
+		}
+#endif
+
+#if MATRIX_MODULE_EXPANSION
+		// cofactor expansion: every term's step writes out a 5x5 minor, and has
+		// to fit the step buffer, not just the arenas
+		for (std::uint8_t line = 0; line < 2; line++) {
+				reset();
+				MatrixMutView a = fill(persist, 6, 6, 12);
+				Rational det;
+				Explanation e;
+				assert(is_ok(op_cofactor_expansion(a.view(),
+				        line == 0 ? ExpansionLine::Row : ExpansionLine::Col,
+				        5,
+				        scratch,
+				        &det,
+				        &e,
+				        ExplainOptions{.enable = true, .persist = &persist})));
+				for (std::size_t i = 0; i < e.step_count(); i++)
+						assert(e.render_step(i, bufs) == ErrorCode::Ok);
+		}
+#endif
+
+#if MATRIX_MODULE_ADJUGATE
+		// adjoint: adj(A) in persist, every 5x5 minor written out in the step buffer,
+		// and an invertible A so the 6x6 inverse is built in scratch too
+		{
+				reset();
+				MatrixMutView a = fill(persist, 6, 6, 15);
+				a.at_mut(0, 0) = Rational::from_int(20);
+				MatrixMutView out{};
+				assert(matrix_alloc(persist, 6, 6, &out) == ErrorCode::Ok);
+				Explanation e;
+				Rational det;
+				assert(is_ok(op_adjugate(
+				        a.view(), scratch, out, &e, ExplainOptions{.enable = true, .persist = &persist}, AdjugateLabels{}, &det)));
+				assert(!det.is_zero());
+				for (std::size_t i = 0; i < e.step_count(); i++)
+						assert(e.render_step(i, bufs) == ErrorCode::Ok);
+		}
+#endif
+
+#if MATRIX_MODULE_TRIANGULAR
+		{
+				reset();
+				MatrixMutView a = fill(persist, 6, 6, 13);
+				for (std::uint8_t r = 0; r < 6; r++) {
+						for (std::uint8_t c = 0; c < r; c++)
+								a.at_mut(r, c) = Rational::from_int(0);
+				}
+				Rational det;
+				Explanation e;
+				assert(is_ok(op_det_triangular(a.view(), &det, &e, ExplainOptions{.enable = true, .persist = &persist})));
+				for (std::size_t i = 0; i < e.step_count(); i++)
+						assert(e.render_step(i, bufs) == ErrorCode::Ok);
+		}
+#endif
+
+#if MATRIX_MODULE_INDEP_DET
+		{
+				reset();
+				MatrixMutView a = fill(persist, 6, 6, 14);
+				Rational det;
+				bool independent = false;
+				Explanation e;
+				assert(is_ok(op_indep_det(a.view(), scratch, &det, &independent, &e, ExplainOptions{.enable = true, .persist = &persist})));
+				for (std::size_t i = 0; i < e.step_count(); i++)
+						assert(e.render_step(i, bufs) == ErrorCode::Ok);
+		}
+#endif
+
+#if MATRIX_MODULE_AREA
+		// area of T(P) from four vertices, with both sketch polygons in persist
+		{
+				reset();
+				MatrixMutView a = fill(persist, 2, 2, 16);
+				MatrixMutView p = fill(persist, 2, 4, 0);
+				for (std::uint8_t i = 0; i < 2; i++)
+						p.at_mut(i, 3) = Rational::from_int(p.at(i, 1).num() + p.at(i, 2).num() - p.at(i, 0).num());
+				MatrixMutView out{};
+				assert(matrix_alloc(persist, 5, 4, &out) == ErrorCode::Ok);
+				Explanation e;
+				assert(is_ok(op_area_transform(a.view(),
+				        p.view(),
+				        scratch,
+				        &out.at_mut(4, 0),
+				        &out.at_mut(4, 1),
+				        &out.at_mut(4, 2),
+				        &e,
+				        ExplainOptions{.enable = true, .persist = &persist},
+				        AreaLabels{},
+				        MatrixMutView{2, 4, out.stride, out.data},
+				        MatrixMutView{2, 4, out.stride, out.data + 2u * out.stride})));
+				for (std::size_t i = 0; i < e.step_count(); i++)
+						assert(e.render_step(i, bufs) == ErrorCode::Ok);
 		}
 #endif
 

@@ -1,0 +1,16 @@
+// Strings of module "expansion"; see shell/include/matrix_shell/text_catalog.inc
+
+MATRIX_SHELL_TEXT_ENTRY(OpCofactorExpansion, "op.cofactor_expansion", "Cofactor expansion", "Developpement cofacteurs")
+MATRIX_SHELL_TEXT_ENTRY(FooterExpansionAdjust, "footer.expansion_adjust", "U/D Field  L/R Adjust  ENTER Run  CLR Back", "U/D Champ  L/R Ajuste  ENTER Run  CLR Retour")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionMatrixPrefix, "expansion.matrix_prefix", "Matrix ", "Matrice ")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionAlong, "expansion.along", "Expand", "Developper")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionRow, "expansion.row", "Row", "Ligne")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionCol, "expansion.col", "Column", "Colonne")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionAcrossRow, "expansion.across_row", "Expand across row", "Developper selon la ligne")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionDownCol, "expansion.down_col", "Expand down column", "Developper selon la colonne")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionDeleteRow, "expansion.delete_row", "Delete row", "Supprimer la ligne")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionColWord, "expansion.col_word", "column", "colonne")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionZeroTerm, "expansion.zero_term", "so the term is 0", "donc le terme est 0")
+MATRIX_SHELL_TEXT_ENTRY(ExpansionSum, "expansion.sum", "Add up the terms", "Somme des termes")
+MATRIX_SHELL_TEXT_ENTRY(ResultExpandedAcrossRow, "result.expanded_across_row", "across row ", "selon la ligne ")
+MATRIX_SHELL_TEXT_ENTRY(ResultExpandedDownCol, "result.expanded_down_col", "down column ", "selon la colonne ")

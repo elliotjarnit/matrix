@@ -26,6 +26,7 @@ enum class ErrorCode : std::uint8_t {
 		BufferTooSmall,
 		IndexOutOfRange,
 		StepOutOfRange,
+		NotParallelogram, // four points that are not the corners of a parallelogram
 		Internal,
 };
 

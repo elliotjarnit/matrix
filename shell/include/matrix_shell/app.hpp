@@ -34,6 +34,7 @@ enum class MenuId : std::uint8_t {
 		RefRref,
 		Multiply,
 		CofactorCramer,
+		Area,
 		SlotList, // A..H (edit)
 };
 

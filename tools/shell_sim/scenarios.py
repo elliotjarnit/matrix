@@ -43,7 +43,7 @@ class Script:
         return "\n".join(self.lines) + "\n"
 
 
-def enter_matrices(s, main_index_of_matrices=0):
+def enter_matrices(s, main_index_of_matrices=0, matrices=MATRICES):
     """From the main menu (cursor on Matrices), fill every slot, return to main."""
     s.press("down", main_index_of_matrices)
     s.press("enter")  # Matrices
@@ -51,7 +51,7 @@ def enter_matrices(s, main_index_of_matrices=0):
     s("snap slots_empty")
     cur = 0
     for slot in SLOTS:
-        rows, cols, vals = MATRICES[slot]
+        rows, cols, vals = matrices[slot]
         idx = SLOTS.index(slot)
         s.press("down", idx - cur)
         cur = idx
@@ -198,13 +198,16 @@ def lu_swap(s, accept):
     s.press("up")
 
 
-def matbasis(s, legacy=False):
+def matbasis(s, legacy=False, op_index=0, enter=True):
     # Operations: 0 Col(A) & Nul(A)
     # `legacy` is the layout before programs shared one menu tree, where the
-    # operation sat on the main menu itself.
-    s("snap main")
-    enter_matrices(s)
-    if not legacy:
+    # operation sat on the main menu itself. `op_index` is where the operation
+    # sits in a program with more in its Operations menu, and `enter` False
+    # reuses the matrices already entered.
+    if enter:
+        s("snap main")
+        enter_matrices(s)
+    if not legacy and enter:
         s.press("down")
         s.press("enter")
         s("snap operations")
@@ -214,6 +217,7 @@ def matbasis(s, legacy=False):
         s.press("down")
         s.press("enter")
         if not legacy:
+            s.press("down", op_index)
             s.press("enter")  # Operations -> Col(A) & Nul(A)
         s(f"snap {name}_pick")
         pick(s, slot)
@@ -230,13 +234,19 @@ def matbasis(s, legacy=False):
 
 
 def matrix_full(s, legacy=False):
-    # Operations: 0 Add/Sub, 1 Multiply, 2 Dot, 3 Cross, 4 Det, 5 Cofactor/Cramer,
-    #             6 REF/RREF, 7 Solve, 8 Span/Indep, 9 Transpose, 10 Inverse,
-    #             11 Invertible?, 12 LU Factorization, 13 LU Solve, 14 Spaces,
-    #             15 Col(A) & Nul(A), 16 Projection
+    # Operations: 0 Add/Sub, 1 Multiply, 2 Dot, 3 Cross, 4 Det,
+    #             5 Cofactor expansion, 6 Det (triangular), 7 Adjoint adj(A),
+    #             8 Cofactor/Cramer, 9 Area, 10 REF/RREF, 11 Solve, 12 Span/Indep,
+    #             13 Transpose, 14 Inverse, 15 Invertible?, 16 Indep.? (det),
+    #             17 LU Factorization, 18 LU Solve, 19 Spaces, 20 Col(A) & Nul(A),
+    #             21 Projection
     # `legacy` is the layout before Cofactor/Cramer had a menu entry.
+    def cur(m):  # index now of what the layout before the determinant ops had at m
+        i = m if m < 5 else (m + 3 if m < 12 else m + 4)
+        return i + 1 if i >= 9 else i  # Area sits after Cofactor/Cramer
+
     def at(n):  # index in the current layout of what the legacy layout had at n
-        return n if legacy or n < 5 else n + 1
+        return n if legacy else cur(n if n < 5 else n + 1)
 
     s("snap main")
     enter_matrices(s)
@@ -276,20 +286,20 @@ def matrix_full(s, legacy=False):
     # Cofactor/Cramer: 0 Cofactor, 1 Minor Matrix, 2 Cramer
     s.press("down")
     s.press("enter")
-    s.press("down", 5)
+    s.press("down", cur(5))
     s.press("enter")
     s("snap menu_cofactor_cramer")
     s.press("clear")
     s.press("clear")
     s.press("up")
-    run(s, "minor", [5, 1], "A", has_steps=False)  # no explanation for the matrix of minors
-    run(s, "minor_nonsquare", [5, 1], "D", error=True)
-    run(s, "cramer", [5, 2], "AB", has_steps=False, extra=cramer_steps)
-    run(s, "cramer_singular", [5, 2], "HB", error=True)
+    run(s, "minor", [cur(5), 1], "A", has_steps=False)  # no explanation for the matrix of minors
+    run(s, "minor_nonsquare", [cur(5), 1], "D", error=True)
+    run(s, "cramer", [cur(5), 2], "AB", has_steps=False, extra=cramer_steps)
+    run(s, "cramer_singular", [cur(5), 2], "HB", error=True)
     # cofactor: pick A, choose C_{2,3} on the index page, run
     s.press("down")
     s.press("enter")
-    s.press("down", 5)
+    s.press("down", cur(5))
     s.press("enter")
     s.press("enter")  # Cofactor
     pick(s, "A")
@@ -322,7 +332,126 @@ def cramer_steps(s):
     s.press("clear")  # menu -> result
 
 
+# the Math 210 determinants worksheet
+WORKSHEET_DET = {
+    "A": (3, 3, [2, 5, -3, 4, 7, -1, 1, 0, 3]),  # 1(a)
+    "B": (4, 4, [4, -5, 2, 6, 0, 1, 4, 6, 0, -2, 2, 6, 0, 4, -3, 2]),  # 1(b)
+    "C": (3, 3, [2, 0, 0, 4, 7, 0, 1, -2, 3]),  # 2(a) lower triangular
+    "D": (4, 4, [-2, 3, 8, 1, 0, 1, 2, -5, 0, 0, -1, 4, 0, 0, 0, 2]),  # 2(b) upper triangular
+    "E": (3, 3, [4, -2, 8, 8, -8, 16, 4, -4, 2]),  # 3
+    "F": (3, 3, [-4, 2, 0, 8, 3, 14, 6, 1, 8]),  # 4: columns v1 v2 v3
+    "G": (2, 3, [1, 2, 3, 4, 5, 6]),  # not square
+    "H": (3, 3, [1, 2, 3, 2, 4, 6, 1, 0, 1]),  # not triangular
+}
+
+
+def matdet(s):
+    # Operations: 0 Determinant, 1 Cofactor expansion, 2 Det (triangular),
+    #             3 Adjoint adj(A), 4 Invertible?, 5 Indep.? (det)
+    # (Mat2 has the same, then 6 Col(A) & Nul(A))
+    s("snap main")
+    enter_matrices(s, matrices=WORKSHEET_DET)
+    s.press("down")
+    s.press("enter")
+    s("snap operations")
+    s.press("clear")
+    s.press("up")
+
+    def expand(name, slot, column, index):
+        # Operations -> Cofactor expansion -> pick -> choose the line -> run
+        s.press("down")
+        s.press("enter")
+        s.press("down", 1)
+        s.press("enter")
+        pick(s, slot)
+        s(f"snap {name}_line")
+        if column:
+            s.press("right")  # Row -> Column
+        s.press("down")
+        s.press("right", index)
+        s(f"snap {name}_line_set")
+        s.press("enter")
+        s(f"snap {name}_result")
+        steps(s, name, pages=6)
+        s.press("clear")  # result -> Operations
+        s.press("clear")
+        s.press("up")
+
+    expand("ws1a_row3", "A", False, 2)
+    expand("ws1b_col1", "B", True, 0)
+    expand("ws1b_col4", "B", True, 3)
+    expand("ws3a_row1", "E", False, 0)
+    run(s, "expand_nonsquare", [1], "G", error=True)
+    run(s, "ws2a_triangular", [2], "C")
+    run(s, "ws2b_triangular", [2], "D")
+    run(s, "triangular_not", [2], "H", error=True)
+    run(s, "ws3b_det", [0], "E", pages=6)
+    run(s, "ws4_indep", [5], "F", pages=8)
+    run(s, "indep_independent", [5], "A", pages=8)
+    run(s, "indep_nonsquare", [5], "G", error=True)
+    run(s, "invertible", [4], "F")
+    run(s, "adjugate", [3], "E", pages=13)
+    run(s, "adjugate_4x4", [3], "B", pages=4)
+    run(s, "adjugate_nonsquare", [3], "G", error=True)
+
+
+def mat2(s):
+    # MatrixDet's operations, then MatrixBasis's, in one Operations menu
+    matdet(s)
+    s.press("down")
+    s.press("enter")
+    s.press("down", 6)
+    s("snap operations_bottom")
+    s.press("clear")
+    s.press("up")
+    matbasis(s, op_index=6, enter=False)
+
+
+# the Math 210 Cramer's rule and areas worksheet
+WORKSHEET_CRAM = {
+    "A": (3, 3, [1, -1, 0, 3, -1, -3, 1, -3, -2]),  # 1(a) coefficients
+    "B": (3, 1, [0, 2, -3]),  # 1(a) right hand side
+    "C": (3, 3, [2, 0, 1, 0, 0, 2, 1, 1, 0]),  # 2(a)
+    "D": (2, 4, [0, 4, 2, 6, 0, 1, 6, 7]),  # 3(a) parallelogram vertices
+    "E": (2, 3, [4, 2, 3, 1, 6, 8]),  # 3(b) triangle vertices
+    "F": (2, 2, [2, 4, -5, 1]),  # 4(a) spanning vectors
+    "G": (2, 2, [3, 1, 1, 2]),  # 4(b) T(x) = Ax
+    "H": (2, 4, [0, 4, 2, 7, 0, 1, 6, 7]),  # not a parallelogram
+}
+
+
+def matcram(s):
+    # Operations: 0 Determinant, 1 Cofactor expansion, 2 Det (triangular),
+    #             3 Adjoint adj(A), 4 Cofactor/Cramer, 5 Area, 6 Invertible?,
+    #             7 Indep.? (det)
+    # Cofactor/Cramer: 0 Cramer. Area: 0 parallelogram, 1 triangle, 2 T(P)
+    s("snap main")
+    enter_matrices(s, matrices=WORKSHEET_CRAM)
+    s.press("down")
+    s.press("enter")
+    s("snap operations")
+    s.press("down", 5)
+    s.press("enter")
+    s("snap menu_area")
+    s.press("clear")
+    s.press("clear")
+    s.press("up")
+    run(s, "ws1_cramer", [4, 0], "AB", has_steps=False, extra=cramer_steps)
+    run(s, "ws1_inverse", [3], "A", pages=15)
+    run(s, "ws2_adjugate", [3], "C", pages=15)
+    run(s, "ws3a_parallelogram", [5, 0], "D", pages=4)
+    run(s, "ws3b_triangle", [5, 1], "E", pages=3)
+    run(s, "ws4a_parallelogram", [5, 0], "F", pages=2)
+    run(s, "ws4b_transform", [5, 2], "GF", pages=7)
+    run(s, "area_not_parallelogram", [5, 0], "H", error=True)
+    run(s, "area_triangle_dims", [5, 1], "D", error=True)
+    run(s, "area_transform_dims", [5, 2], "CF", error=True)
+
+
 PROGRAMS = {
+    "mat2": mat2,
+    "matcram": matcram,
+    "matdet": matdet,
     "matlite": matlite,
     "matbasis": matbasis,
     "matbasis-legacy": lambda s: matbasis(s, legacy=True),

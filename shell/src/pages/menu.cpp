@@ -68,13 +68,18 @@ constexpr MenuEntry kOperationsMenuEntries[] = {
         operation(OperationId::Dot),
         operation(OperationId::Cross),
         operation(OperationId::Det),
+        operation(OperationId::CofactorExpansion),
+        operation(OperationId::DetTriangular),
+        operation(OperationId::Adjugate),
         submenu("menu.entry.cofactor_cramer"_tid, MenuId::CofactorCramer),
+        submenu("menu.entry.area"_tid, MenuId::Area),
         submenu("menu.entry.ref_rref"_tid, MenuId::RefRref),
         operation(OperationId::SolveRref),
         submenu("menu.entry.span_indep"_tid, MenuId::Span),
         operation(OperationId::Transpose),
         operation(OperationId::Inverse),
         operation(OperationId::Invertible),
+        operation(OperationId::IndepDet),
         operation(OperationId::LuFactor),
         operation(OperationId::LuSolve),
         submenu("menu.entry.spaces"_tid, MenuId::Spaces),
@@ -96,6 +101,12 @@ constexpr MenuEntry kCofactorCramerMenuEntries[] = {
         operation(OperationId::CofactorElement),
         operation(OperationId::MinorMatrix),
         operation(OperationId::Cramer),
+};
+
+constexpr MenuEntry kAreaMenuEntries[] = {
+        operation(OperationId::AreaParallelogram),
+        operation(OperationId::AreaTriangle),
+        operation(OperationId::AreaTransform),
 };
 
 constexpr MenuEntry kRefRrefMenuEntries[] = {
@@ -144,6 +155,8 @@ MenuDef menu_def(MenuId id) noexcept {
 				return {"menu.multiply.title"_tid, kMultiplyMenuEntries, array_count(kMultiplyMenuEntries)};
 		case MenuId::CofactorCramer:
 				return {"menu.cofactor_cramer.title"_tid, kCofactorCramerMenuEntries, array_count(kCofactorCramerMenuEntries)};
+		case MenuId::Area:
+				return {"menu.area.title"_tid, kAreaMenuEntries, array_count(kAreaMenuEntries)};
 		case MenuId::SlotList:
 				return {"menu.edit_matrix.title"_tid, nullptr, 0};
 		}

@@ -1,0 +1,5 @@
+// MATRIX_OP(Id, "op.text_key", is_binary, run, result_body, result_steps):
+// see matrix_shell/app.hpp
+MATRIX_OP(AreaParallelogram, "op.area_parallelogram", false, run_area, render_result_area, open_result_steps)
+MATRIX_OP(AreaTriangle, "op.area_triangle", false, run_area, render_result_area, open_result_steps)
+MATRIX_OP(AreaTransform, "op.area_transform", true, run_area_transform, render_result_area_transform, open_result_steps)

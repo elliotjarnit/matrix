@@ -128,6 +128,32 @@
       }
     },
     {
+      "name": "ce-mat2",
+      "displayName": "TI-84 Plus CE (Mat2: MatrixBasis + MatrixDet in one program, EN+FR)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/ce-mat2",
+      "cacheVariables": {
+        "MATRIX_BUILD_CE": "ON",
+        "MATRIX_CE_PROGRAMS": "mat2",
+        "MATRIX_CE_LANGS": "en;fr",
+        "MATRIX_SHELL_DEBUG": "OFF",
+        "CEDEV_DEBUG_CONSOLE": "OFF"
+      }
+    },
+    {
+      "name": "ce-matcram",
+      "displayName": "TI-84 Plus CE (MatCram: MatrixDet + MatrixArea in one program, EN+FR)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/ce-matcram",
+      "cacheVariables": {
+        "MATRIX_BUILD_CE": "ON",
+        "MATRIX_CE_PROGRAMS": "matcram",
+        "MATRIX_CE_LANGS": "en;fr",
+        "MATRIX_SHELL_DEBUG": "OFF",
+        "CEDEV_DEBUG_CONSOLE": "OFF"
+      }
+    },
+    {
       "name": "ce-debug",
       "displayName": "TI-84 Plus CE (every program, debug console)",
       "generator": "Ninja",
@@ -198,6 +224,16 @@
     {
       "name": "ce-release-dual-lang",
       "configurePreset": "ce-release-dual-lang",
+      "cleanFirst": true
+    },
+    {
+      "name": "ce-mat2",
+      "configurePreset": "ce-mat2",
+      "cleanFirst": true
+    },
+    {
+      "name": "ce-matcram",
+      "configurePreset": "ce-matcram",
       "cleanFirst": true
     },
     {

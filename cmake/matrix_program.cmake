@@ -33,6 +33,7 @@ set(MATRIX_ENGINE_SOURCES
   ${MATRIX_REPO_DIR}/core/src/explanation.cpp
   ${MATRIX_REPO_DIR}/core/src/latex_view.cpp
   ${MATRIX_REPO_DIR}/core/src/matrix_view.cpp
+  ${MATRIX_REPO_DIR}/core/src/minor_detail.cpp
   ${MATRIX_REPO_DIR}/core/src/ops_basic_view.cpp
   ${MATRIX_REPO_DIR}/core/src/ops_det_ondemand.cpp
   ${MATRIX_REPO_DIR}/core/src/ops_rref_ondemand.cpp
@@ -119,7 +120,43 @@ function(matrix_program name)
   set_property(GLOBAL PROPERTY MATRIX_PROGRAM_${name}_MODULES "${P_MODULES}")
 endfunction()
 
-# Registers every module and program in the repository (once).
+# matrix_program_set(<name>
+#   TI_NAME <NAME>
+#   [TI_NAME_FR <NAME>]
+#   DESCRIPTION <text>
+#   PROGRAMS programs...)
+#
+# One calculator program with every feature of the programs it names: its
+# modules are the union of theirs, so their operations all sit together in the
+# shared menu tree. Defined in programs/sets/<name>.cmake, which are read after
+# every programs/*/program.cmake; otherwise it is an ordinary program (target
+# <name>, built with the rest, selectable with MATRIX_CE_PROGRAMS).
+function(matrix_program_set name)
+  cmake_parse_arguments(S "" "TI_NAME;TI_NAME_FR;DESCRIPTION" "PROGRAMS" ${ARGN})
+  get_property(programs GLOBAL PROPERTY MATRIX_PROGRAMS)
+  if(NOT S_PROGRAMS)
+    message(FATAL_ERROR "program set '${name}': PROGRAMS is required")
+  endif()
+  set(modules)
+  foreach(p IN LISTS S_PROGRAMS)
+    if(NOT p IN_LIST programs)
+      message(FATAL_ERROR "program set '${name}': unknown program '${p}' (known: ${programs})")
+    endif()
+    get_property(program_modules GLOBAL PROPERTY MATRIX_PROGRAM_${p}_MODULES)
+    list(APPEND modules ${program_modules})
+  endforeach()
+  list(REMOVE_DUPLICATES modules)
+
+  set(fr)
+  if(S_TI_NAME_FR)
+    set(fr TI_NAME_FR ${S_TI_NAME_FR})
+  endif()
+  matrix_program(${name} TI_NAME ${S_TI_NAME} ${fr} DESCRIPTION "${S_DESCRIPTION}" MODULES ${modules})
+  set_property(GLOBAL APPEND PROPERTY MATRIX_PROGRAM_SETS ${name})
+  set_property(GLOBAL PROPERTY MATRIX_PROGRAM_SET_${name}_PROGRAMS "${S_PROGRAMS}")
+endfunction()
+
+# Registers every module, program and program set in the repository (once).
 macro(matrix_load_definitions)
   get_property(_matrix_loaded GLOBAL PROPERTY MATRIX_DEFINITIONS_LOADED)
   if(NOT _matrix_loaded)
@@ -128,6 +165,11 @@ macro(matrix_load_definitions)
     file(GLOB _matrix_program_files ${MATRIX_REPO_DIR}/programs/*/program.cmake)
     list(SORT _matrix_program_files)
     foreach(_f IN LISTS _matrix_program_files)
+      include(${_f})
+    endforeach()
+    file(GLOB _matrix_set_files ${MATRIX_REPO_DIR}/programs/sets/*.cmake)
+    list(SORT _matrix_set_files)
+    foreach(_f IN LISTS _matrix_set_files)
       include(${_f})
     endforeach()
   endif()

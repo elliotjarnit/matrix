@@ -5,6 +5,9 @@ foreach(_matrix_module IN ITEMS
     colrow
     vectors
     det
+    expansion
+    triangular
+    adjugate
     cofactor
     minor_matrix
     cramer
@@ -14,6 +17,8 @@ foreach(_matrix_module IN ITEMS
     transpose
     inverse
     invertible
+    indep_det
+    area
     lu
     spaces
     basis

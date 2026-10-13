@@ -70,7 +70,8 @@ int main() {
 				assert(expl.render_step(1, bufs) == ErrorCode::Ok);
 				assert(std::strlen(caption) > 0);
 				assert(expl.render_step(nsteps - 1, bufs) == ErrorCode::Ok);
-				assert(std::strcmp(latex, "$$\\det(A) = -2$$") == 0);
+				// (-1)^r times the pivots of U: R2 <- R2 - 3R1 leaves 1, -2 and no swaps
+				assert(std::strcmp(latex, "$$\\det(A) = (-1)^{0}(1)(-2)$$\n$$= -2$$") == 0);
 
 #if defined(MATRIX_CE_TESTS)
 				dbg_printf("%s\n", latex);
@@ -88,6 +89,35 @@ int main() {
 #if defined(MATRIX_CE_TESTS)
 		dbg_printf("[test_det] after det steps asserts\n");
 #endif
+
+		{
+				// a row swap shows up as r = 1; a missing pivot as a bare 0
+				Slab slab;
+				assert(slab.init(64 * 1024) == ErrorCode::Ok);
+				Arena persist(slab.data(), slab.size() / 2);
+				Arena scratch(slab.data() + (slab.size() / 2), slab.size() - (slab.size() / 2));
+
+				char caption[128];
+				char latex[512];
+				StepRenderBuffers bufs{caption, sizeof(caption), latex, sizeof(latex), &scratch};
+
+				MatrixMutView a = mat2(persist, 0, 2, 3, 4);
+				Rational det;
+				Explanation expl;
+				auto err = matrix_core::op_det(a.view(), scratch, &det, &expl, ExplainOptions{.enable = true, .persist = &persist});
+				assert(matrix_core::is_ok(err));
+				assert(det.num() == -6 && det.den() == 1);
+				assert(expl.render_step(expl.step_count() - 1, bufs) == ErrorCode::Ok);
+				assert(std::strcmp(latex, "$$\\det(A) = (-1)^{1}(3)(2)$$\n$$= -6$$") == 0);
+
+				MatrixMutView s = mat2(persist, 1, 2, 2, 4);
+				Explanation expl_s;
+				err = matrix_core::op_det(s.view(), scratch, &det, &expl_s, ExplainOptions{.enable = true, .persist = &persist});
+				assert(matrix_core::is_ok(err));
+				assert(det.is_zero());
+				assert(expl_s.render_step(expl_s.step_count() - 1, bufs) == ErrorCode::Ok);
+				assert(std::strcmp(latex, "$$\\det(A) = 0$$") == 0);
+		}
 
 		{
 				Slab slab;

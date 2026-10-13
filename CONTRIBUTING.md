@@ -75,7 +75,9 @@ cmake --build build/ce --target matbasis
 
 `MATRIX_CE_LANGS` picks the languages (`en`, `fr`, or `en;fr`). The presets:
 `ce` (every program, English), `ce-release-fr` (French), `ce-debug` /
-`ce-debug-fr` (shell debug logging and the CEmu debug console), and
+`ce-debug-fr` (shell debug logging and the CEmu debug console), `ce-mat2` and
+`ce-matcram` (the Mat2 and MatCram program sets, see
+[Program sets](#program-sets)), and
 `ce-release-dual-lang`, which is what the release workflows build: MatrixLite
 in both languages.
 
@@ -102,6 +104,10 @@ cmake --preset native-coverage && cmake --build --preset native-coverage
 | Matrix | `MATRIX` (`MATRIXFR`) | every module |
 | MatrixLite | `MATLITE` (`MATLITFR`) | arithmetic, colrow, det, echelon, solve, dependency, invertible, lu |
 | MatrixBasis | `MATBASIS` (`MATBASFR`) | basis |
+| MatrixDet | `MATDET` (`MATDETFR`) | det, expansion, triangular, adjugate, invertible, indep_det |
+| MatrixArea | `MATAREA` (`MATAREFR`) | cramer, area |
+| Mat2 (set) | `MAT2` (`MAT2FR`) | every module of MatrixBasis and MatrixDet |
+| MatCram (set) | `MATCRAM` (`MATCRMFR`) | every module of MatrixDet and MatrixArea |
 
 A program is `programs/<name>/program.cmake`:
 
@@ -125,6 +131,36 @@ Determinant, REF/RREF and Col(A) & Nul(A) under Operations and nothing else.
 Make the directory, re-run the `ce` configure, and `build/ce/exam2/bin/EXAM2.8xp`
 appears.
 
+### Program sets
+
+A program set is one program with every feature of the programs it names:
+its modules are the union of theirs, so all their operations share the one
+Operations menu. Sets live in `programs/sets/<name>.cmake`, read after every
+program:
+
+```cmake
+matrix_program_set(mat2
+  TI_NAME MAT2
+  TI_NAME_FR MAT2FR
+  DESCRIPTION "Mat2"
+  PROGRAMS
+    matbasis
+    matdet
+)
+```
+
+Otherwise a set is an ordinary program: target `mat2`, built by `ce` with the
+rest, selectable with `MATRIX_CE_PROGRAMS`. The `ce-mat2` preset builds just
+Mat2, in both languages, into `build/ce-mat2/mat2[_fr]/bin/`:
+
+```bash
+cmake --preset ce-mat2 -DCEDEV_ROOT=/path/to/CEdev
+cmake --build build/ce-mat2
+```
+
+MatCram (`programs/sets/matcram.cmake`, MatrixDet + MatrixArea) works the same
+way with the `ce-matcram` preset, into `build/ce-matcram/matcram[_fr]/bin/`.
+
 A TI variable holds at most 65535 bytes. A program bigger than that (Matrix,
 for one) is split by `convbin` into a small launcher `.8xp` plus `.8xv`
 appvars, which all have to be sent; check the build output for
@@ -139,7 +175,10 @@ TeX pool, which is why MatrixLite exists.
 | `arithmetic` | Add, Subtract, Multiply |
 | `colrow` | Multiply (col-row): A*B as a sum of outer products |
 | `vectors` | Dot product, Cross product, Projection |
-| `det` | Determinant |
+| `det` | Determinant (row reduction, ending on (-1)^r times the pivots) |
+| `expansion` | Cofactor expansion across any row or down any column |
+| `triangular` | Det (triangular): the product of the diagonal |
+| `adjugate` | Adjoint adj(A): every cofactor, adj(A) = C^T, det(A), A^-1 = adj(A)/det(A) and det(A^-1) |
 | `cofactor` | Cofactor C_ij |
 | `minor_matrix` | Matrix of minors |
 | `cramer` | Cramer's rule |
@@ -149,6 +188,8 @@ TeX pool, which is why MatrixLite exists.
 | `transpose` | Transpose |
 | `inverse` | Inverse |
 | `invertible` | Invertible? |
+| `indep_det` | Indep.? (det): n vectors in R^n are independent iff det(A) != 0 |
+| `area` | Area: parallelogram, Area: triangle (from edge vectors or vertices), Area of T(P) for T(x) = Ax with Area T(P) = \|det A\| Area P; the result screen sketches the region |
 | `lu` | LU factorization (PA = LU), LU solve |
 | `spaces` | Col / Row / Null / Left null space bases |
 | `basis` | Col(A) & Nul(A): bases, rank, dimensions, rank theorem |
@@ -221,6 +262,11 @@ of them.
 | `test_lu` | LU factorization (including PA = LU), substitution, and LU step rendering |
 | `test_vectors` | Dot product, cross product, projection |
 | `test_cofactor_element` | Single cofactor/minor with step rendering |
+| `test_expansion` | Cofactor expansion along every row and column, against the determinants worksheet |
+| `test_triangular` | Triangular detection and the diagonal product |
+| `test_indep_det` | Linear independence by det(A) != 0, with the det steps and the verdict |
+| `test_adjugate` | adj(A), A adj(A) = det(A) I, the inverse and det(A^-1) steps, against the Cramer worksheet |
+| `test_area` | Parallelogram and triangle areas from vectors or vertices, the opposite corner of four vertices, T(P) and the \|det A\| check, against the areas worksheet |
 | `test_minor_matrix` | Full matrix of minors |
 | `test_spaces` | Column/row/null space basis extraction |
 | `test_solve_parametric` | Complete solution of Ax=b in parametric vector form, with step rendering |

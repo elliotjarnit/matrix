@@ -9,6 +9,9 @@ matrix_program(matrix
     colrow
     vectors
     det
+    expansion
+    triangular
+    adjugate
     cofactor
     minor_matrix
     cramer
@@ -18,6 +21,8 @@ matrix_program(matrix
     transpose
     inverse
     invertible
+    indep_det
+    area
     lu
     spaces
     basis

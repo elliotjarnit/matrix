@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Step-by-step linear algebra programs for the TI-84 Plus CE. Exact rational arithmetic; each operation produces a LaTeX-rendered step-by-step explanation. Several calculator programs (Matrix, MatrixLite, MatrixBasis) are built from shared code plus a per-program list of feature modules. See `README.md` (user docs) and `CONTRIBUTING.md` (technical overview, memory budget, module/program tables).
+Step-by-step linear algebra programs for the TI-84 Plus CE. Exact rational arithmetic; each operation produces a LaTeX-rendered step-by-step explanation. Several calculator programs (Matrix, MatrixLite, MatrixBasis, MatrixDet, MatrixArea) are built from shared code plus a per-program list of feature modules; a program set (`programs/sets/*.cmake`) is one more program whose modules are the union of the programs it names (Mat2 = everything in MatrixBasis + MatrixDet, MatCram = MatrixDet + MatrixArea; one Operations menu each). See `README.md` (user docs) and `CONTRIBUTING.md` (technical overview, memory budget, module/program tables).
 
 ## Build & test
 
@@ -12,7 +12,7 @@ Step-by-step linear algebra programs for the TI-84 Plus CE. Exact rational arith
 cmake --preset native && cmake --build --preset native && ctest --preset native
 ```
 
-Run one test: `ctest --preset native -R det` (a test's name is its file stem minus `test_`: engine tests in `core/tests/` — `rational`, `matrix_ops`, `rref`, `det`, `spaces`, `arena_guards`, `arena_budget` — plus each module's `TESTS` from its `module.cmake`, e.g. `lu`, `basis`, `cramer`). The native build always includes every module. Or run the binary directly: `./build/native/test_det`. Tests are plain `int main()` + `assert` — no framework; a failure aborts.
+Run one test: `ctest --preset native -R det` (a test's name is its file stem minus `test_`: engine tests in `core/tests/` — `rational`, `matrix_ops`, `rref`, `det`, `spaces`, `arena_guards`, `arena_budget` — plus each module's `TESTS` from its `module.cmake`, e.g. `lu`, `basis`, `cramer`, `expansion`, `area`). The native build always includes every module. Or run the binary directly: `./build/native/test_det`. Tests are plain `int main()` + `assert` — no framework; a failure aborts.
 
 Sanitizers: presets `native-asan`, `native-ubsan`, `native-lsan`, `native-coverage` (same configure/build/ctest pattern, `build/<preset>/`).
 
@@ -24,7 +24,7 @@ cmake --preset ce -DCEDEV_ROOT=/path/to/CEdev && cmake --build --preset ce
 
 - **`CEDEV_ROOT` defaults to a hard-coded `/home/sightem/CEdev`** (`cmake/CEdevToolchain.cmake:64`) — always pass it explicitly (here it is `~/CEdev`).
 - Requires the submodule: `git submodule update --init --recursive` (`third_party/libtexce` is empty on a fresh clone and the CE build needs its `src/tex/*.c`).
-- Output: `build/ce/<program>/bin/<TI name>.8xp` (`matlite/bin/MATLITE.8xp`, `matbasis/bin/MATBASIS.8xp`, `matrix/bin/MATRIX.8xp` + appvars); French builds are targets `<program>_fr`. Restrict with `-DMATRIX_CE_PROGRAMS="matlite;matbasis"` or `--target matbasis`; languages with `MATRIX_CE_LANGS` (`en`, `fr`, `en;fr`). Presets: `ce`, `ce-release-fr`, `ce-debug`/`ce-debug-fr` (enables `MATRIX_SHELL_DEBUG` + CEmu debug console), `ce-release-dual-lang` (MatrixLite EN+FR, used by CI).
+- Output: `build/ce/<program>/bin/<TI name>.8xp` (`matlite/bin/MATLITE.8xp`, `matbasis/bin/MATBASIS.8xp`, `matrix/bin/MATRIX.8xp` + appvars); French builds are targets `<program>_fr`. Restrict with `-DMATRIX_CE_PROGRAMS="matlite;matbasis"` or `--target matbasis`; languages with `MATRIX_CE_LANGS` (`en`, `fr`, `en;fr`). Presets: `ce`, `ce-release-fr`, `ce-debug`/`ce-debug-fr` (enables `MATRIX_SHELL_DEBUG` + CEmu debug console), `ce-release-dual-lang` (MatrixLite EN+FR, used by CI), `ce-mat2` / `ce-matcram` (just the Mat2 / MatCram set program, EN+FR, into `build/ce-mat2/` / `build/ce-matcram/`). Output is `mat2/bin/MAT2.8xp`, `matcram/bin/MATCRAM.8xp`.
 - Core unit tests can be built as standalone `.8xp` programs for CEmu with `-DMATRIX_BUILD_CE_TESTS=ON`; they report via `dbg_printf`, there is no automation.
 - Shell UI on the desktop: `tools/shell_sim` (PortCE, headless, SDL2) runs a program from a key script and saves `.ppm` screenshots; `tools/shell_sim/scenarios.py <program>` generates a script that walks every operation. Use it to check UI changes (snapshot before/after and compare). See `CONTRIBUTING.md`.
 

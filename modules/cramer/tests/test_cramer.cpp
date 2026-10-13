@@ -105,7 +105,9 @@ int main() {
 						assert(std::strlen(caption) > 0);
 				}
 				assert(expl.render_step(nsteps - 1, bufs) == ErrorCode::Ok);
-				assert(std::strcmp(latex, "$$\\det(A) = -423$$") == 0);
+				// (-1)^r times the pivots, then the value
+				assert(std::strstr(latex, "$$\\det(A) = (-1)^{") == latex);
+				assert(std::strstr(latex, "$$\n$$= -423$$") != nullptr);
 
 #if defined(MATRIX_CE_TESTS)
 				dbg_printf("%s\n", latex);

@@ -4,7 +4,12 @@
 
 namespace matrix_core::detail {
 
-ErrorCode det_elim(MatrixMutView m, Rational* det_out, std::size_t* op_count, std::size_t stop_after, RowOp* last_op) noexcept {
+ErrorCode det_elim(MatrixMutView m,
+        Rational* det_out,
+        std::size_t* op_count,
+        std::size_t stop_after,
+        RowOp* last_op,
+        std::size_t* swap_count) noexcept {
 		if (!det_out || !m.data)
 				return ErrorCode::Internal;
 		if (m.rows != m.cols)
@@ -13,6 +18,7 @@ ErrorCode det_elim(MatrixMutView m, Rational* det_out, std::size_t* op_count, st
 		const std::uint8_t n = m.rows;
 		std::int32_t sign = 1;
 		std::size_t ops = 0;
+		std::size_t swaps = 0;
 		RowOp last{};
 		bool have_last = false;
 
@@ -31,12 +37,15 @@ ErrorCode det_elim(MatrixMutView m, Rational* det_out, std::size_t* op_count, st
 						*det_out = Rational::from_int(0);
 						if (op_count)
 								*op_count = ops;
+						if (swap_count)
+								*swap_count = swaps;
 						return ErrorCode::Ok;
 				}
 
 				if (pivot != col) {
 						apply_swap(m, col, pivot);
 						sign = -sign;
+						swaps++;
 
 						ops++;
 						last.kind = RowOpKind::Swap;
@@ -80,6 +89,8 @@ ErrorCode det_elim(MatrixMutView m, Rational* det_out, std::size_t* op_count, st
 
 		if (op_count)
 				*op_count = ops;
+		if (swap_count)
+				*swap_count = swaps;
 		if (last_op && have_last)
 				*last_op = last;
 

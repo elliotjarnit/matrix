@@ -1,0 +1,3 @@
+// MATRIX_OP(Id, "op.text_key", is_binary, run, result_body, result_steps):
+// see matrix_shell/app.hpp
+MATRIX_OP(CofactorExpansion, "op.cofactor_expansion", false, run_cofactor_expansion, render_result_cofactor_expansion, open_result_steps)

@@ -36,13 +36,17 @@ Linear algebra courses require you to work through lengthy and repetitive calcul
 | **Add / Subtract** | Element-wise matrix addition and subtraction |
 | **Multiply** | Full matrix multiplication with dot-product steps |
 | **Transpose** | Transpose of any matrix |
-| **Determinant** | Cofactor expansion with smart row/column selection |
+| **Determinant** | Row reduction to an echelon form U, then det(A) = (-1)^r times the pivots of U |
+| **Cofactor expansion** | det(A) expanded across any row or down any column, each minor and cofactor worked out |
+| **Det (triangular)** | det(A) of a triangular matrix as the product of its diagonal |
 | **Inverse** | Gauss-Jordan elimination on the augmented matrix [A \| I] |
 | **LU Factorization** | Doolittle LU (no row swaps) with the multipliers shown as they fill L |
 | **LU Solve** | Ax = b through LU: forward substitution, then back substitution or row reduction |
 | **PA = LU** | Optional partial pivoting when a zero pivot blocks the plain factorization |
 | **REF / RREF** | Row Echelon Form and Reduced Row Echelon Form |
 | **Cramer's Rule** | Solve Ax = b with per-Δ step breakdowns |
+| **Adjoint adj(A)** | Every cofactor, adj(A) = C^T, det(A), then A^-1 = adj(A)/det(A) and det(A^-1) = 1/det(A) |
+| **Area** | Area of a parallelogram or triangle as \|det\| of its edge vectors, and the area of T(P) under T(x) = Ax, with a sketch |
 | **Minor / Cofactor** | Compute M\_{ij} and C\_{ij} for any element |
 | **Minor Matrix** | Full matrix of minors |
 
@@ -64,6 +68,7 @@ Linear algebra courses require you to work through lengthy and repetitive calcul
 | **Left Null Space Basis** | Basis for Null(Aᵀ) |
 | **Span Test** | Test whether a vector is in the span of a set or R^m |
 | **Independence Test** | Test whether a set of vectors is linearly independent |
+| **Indep.? (det)** | n vectors in R^n are independent exactly when det(A) != 0 (Invertible Matrix Theorem) |
 | **Solve via RREF** | Solve a linear system using row reduction |
 | **Col(A) & Nul(A)** | Col(A) and Nul(A), a basis for each, rank and dimensions, checked with the rank theorem |
 
@@ -75,7 +80,15 @@ The same code builds several calculator programs. Each one is a list of features
 |---|---|---|
 | **MatrixLite** | `MATLITE.8xp` | what the Math 210 review sheets ask for; the one in the releases |
 | **MatrixBasis** | `MATBASIS.8xp` | only Col(A) & Nul(A) |
+| **MatrixDet** | `MATDET.8xp` | the determinants worksheet: cofactor expansion, triangular and row reduced determinants, invertibility and independence by det |
+| **MatrixArea** | `MATAREA.8xp` | Cramer's rule and areas by determinants |
+| **Mat2** | `MAT2.8xp` | everything MatrixDet and MatrixBasis have, in one Operations menu |
+| **MatCram** | `MATCRAM.8xp` | everything MatrixDet and MatrixArea have: the Cramer's rule, adjoint and areas worksheet |
 | **Matrix** | `MATRIX.8xp` + `MATRIX0.8xv`, `MATRIX1.8xv` | everything; too large for one file, and may not fit in calculator RAM |
+
+A **program set** is one program with every feature of the programs it names. **Mat2** (`MAT2.8xp`) is the set of MatrixDet and MatrixBasis: Determinant, Cofactor expansion, Det (triangular), Invertible?, Indep.? (det) and Col(A) & Nul(A), all under **Operations**. The `ce-mat2` preset builds it in English and French.
+
+**MatCram** (`MATCRAM.8xp`) is the set of MatrixDet and MatrixArea, made for the Cramer's rule / adjoint / areas worksheet: Determinant, Cofactor expansion, Det (triangular), Adjoint adj(A), **Cofactor/Cramer > Cramer**, **Area** (parallelogram, triangle, T(P)), Invertible? and Indep.? (det). The `ce-matcram` preset builds it in English and French.
 
 To make a program with exactly the features you need (for an exam, say), add a `programs/<name>/program.cmake` listing the modules you want and rebuild; [CONTRIBUTING.md](CONTRIBUTING.md#modules-and-programs) lists the modules and has an example.
 
@@ -90,6 +103,30 @@ To make a program with exactly the features you need (for an exam, say), add a `
 - the **rank theorem** check: rank(A) + dim Nul(A) = n
 
 Press **left/right** on the result screen to switch between the summary, the Col(A) basis and the Nul(A) basis, and **[2nd]** for the steps: the definitions, every row operation to RREF, the pivot columns, the Col(A) basis, the pivot variables solved in terms of the free ones, x in parametric vector form, the Nul(A) basis, and the rank theorem with the numbers filled in. Install it exactly like `MATLITE.8xp` (it needs the same fonts and clibs); the two can be on the calculator at the same time.
+
+### MatrixDet
+
+**MatrixDet** (`MATDET.8xp`) covers the Math 210 determinants worksheet. Under **Operations**:
+
+- **Determinant**: row reduces A to an echelon form U, one row operation per step, and finishes with det(A) = (-1)^r (product of the pivots of U), r being the number of row swaps; a missing pivot means A is not invertible and det(A) = 0
+- **Cofactor expansion**: pick A, then choose **Row** or **Column** (left/right on the first field) and which one (left/right on the second). The steps write det(A) = a_i1 C_i1 + ... + a_in C_in for that line, then take each term in turn: the minor M_ij with row i and column j deleted, its determinant (ad - bc for 2x2, worked across its first row for 3x3), C_ij = (-1)^(i+j) det(M_ij) and the product a_ij C_ij. A zero entry's term is just marked 0. The last step adds the terms up
+- **Det (triangular)**: for an upper or lower triangular (or diagonal) A, det(A) = a_11 a_22 ... a_nn
+- **Adjoint adj(A)**: each cofactor C_ij worked out, the matrix of cofactors C, adj(A) = C^T, det(A) across row 1, and when det(A) != 0 the inverse A^-1 = adj(A)/det(A) entry by entry and det(A^-1) = 1/det(A). The result screen shows det(A), det(A^-1) and adj(A)
+- **Invertible?**: invertible exactly when det(A) != 0
+- **Indep.? (det)**: enter the vectors as the columns of A; they are linearly independent exactly when det(A) != 0
+
+Install it like `MATLITE.8xp`; it needs the same fonts and clibs.
+
+### MatrixArea
+
+**MatrixArea** (`MATAREA.8xp`) has Cramer's rule and the area operations; **MatCram** puts them together with everything in MatrixDet. Points and vectors go in as the **columns** of a 2-row matrix:
+
+- **Cofactor/Cramer > Cramer**: pick the coefficient matrix A and the right hand side b (n x 1); the steps show det(A) and each det(A_i), and x_i = det(A_i)/det(A)
+- **Area > Area: parallelogram**: a 2x2 matrix holds the two edge vectors; a 2x3 matrix holds three vertices, the first being the corner next to the other two; a 2x4 matrix holds all four vertices in any order (the steps find the corner opposite P1 as P_a + P_b - P1). Area = \|det[u v]\|
+- **Area > Area: triangle**: three vertices (2x3) or two edge vectors (2x2); Area = 1/2 \|det[u v]\|
+- **Area > Area of T(P), T(x)=Ax**: pick A (2x2), then P as for the parallelogram. The steps find P and its area, the images Au and Av, the vertices of T(P), its area \|det[Au Av]\|, det(A), and check Area T(P) = \|det A\| Area P
+
+The area result screens draw the region on axes through the origin (P in gray and T(P) in blue for the transformation), which you can copy for the "sketch the region" parts.
 
 ### LU Factorization
 

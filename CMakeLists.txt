@@ -10,7 +10,8 @@ option(MATRIX_STRICT_WARNINGS "Enable -Werror and extra warnings" ON)
 option(MATRIX_BUILD_CE_TESTS "Build core unit tests as CE programs when MATRIX_BUILD_CE=ON" OFF)
 option(MATRIX_SHELL_DEBUG "Enable shell debug logging" OFF)
 
-# Calculator programs to build (programs/<name>/program.cmake); empty for all.
+# Calculator programs to build (programs/<name>/program.cmake, or a program set
+# from programs/sets/<name>.cmake); empty for all.
 set(MATRIX_CE_PROGRAMS "" CACHE STRING "Programs to build for the CE (semicolon list, empty = all)")
 # Languages to build each of them in: en, fr.
 set(MATRIX_CE_LANGS "en" CACHE STRING "Languages to build CE programs in (semicolon list of en, fr)")
@@ -20,8 +21,10 @@ matrix_load_definitions()
 
 get_property(MATRIX_ALL_PROGRAMS GLOBAL PROPERTY MATRIX_PROGRAMS)
 get_property(MATRIX_ALL_MODULES GLOBAL PROPERTY MATRIX_MODULES)
+get_property(MATRIX_ALL_PROGRAM_SETS GLOBAL PROPERTY MATRIX_PROGRAM_SETS)
 message(STATUS "Matrix modules: ${MATRIX_ALL_MODULES}")
 message(STATUS "Matrix programs: ${MATRIX_ALL_PROGRAMS}")
+message(STATUS "Matrix program sets: ${MATRIX_ALL_PROGRAM_SETS}")
 
 set(MATRIX_CORE_DIR "${CMAKE_CURRENT_LIST_DIR}/core")
 
